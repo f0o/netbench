@@ -58,7 +58,7 @@ func (this *worker) Do() error {
 			body, _ := io.ReadAll(resp.Body)
 			resp.Body.Close()
 			if this.blen == 0 {
-				this.blen = len(body) / 2
+				this.blen = int(0.9 * float64(len(body))) // 90% of the body length
 			} else if this.blen > len(body) {
 				prometheus.Metrics.RequestsFailed.Inc()
 				prometheus.Metrics.RequestsBlength.Inc()

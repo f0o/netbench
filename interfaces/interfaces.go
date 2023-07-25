@@ -12,6 +12,7 @@ type Flags struct {
 	ScalerOpts
 
 	Duration time.Duration
+	Format   string
 }
 
 type ScalerOpts struct {

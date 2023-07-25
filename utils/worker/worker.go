@@ -64,7 +64,7 @@ func (this *worker) Do() error {
 				prometheus.Metrics.RequestsBlength.Inc()
 				continue
 			}
-			prometheus.Metrics.RequestsTime.Observe(float64(stop))
+			prometheus.Metrics.ResponseTimes.Observe(float64(stop))
 		}
 	}
 }

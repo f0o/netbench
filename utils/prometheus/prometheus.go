@@ -1,6 +1,7 @@
 package prometheus
 
 import (
+	"math"
 	"net/http"
 	"strconv"
 	"sync"
@@ -19,58 +20,58 @@ type metrics struct {
 	RequestsError   prometheus.Counter
 	RequestsBlength prometheus.Counter
 	RequestsAborted prometheus.Counter
-	RequestsTime    prometheus.Summary
-	RequestsCode    map[int]prometheus.Counter
+	ResponseTimes   prometheus.Summary
+	ResponseCodes   map[int]prometheus.Counter
 	Workers         prometheus.Gauge
 }
 
-type metricValues struct {
-	RequestsTotal   float64
-	RequestsFailed  float64
-	RequestsError   float64
-	RequestsBlength float64
-	RequestsAborted float64
-	RequestsTime    map[float64]float64
-	RequestsCode    map[int]float64
-	Workers         float64
+type MetricValues struct {
+	RequestsTotal   float64            `json:"requests_total"`
+	RequestsFailed  float64            `json:"requests_failed"`
+	RequestsError   float64            `json:"requests_error"`
+	RequestsBlength float64            `json:"requests_failed_bodylength"`
+	RequestsAborted float64            `json:"requests_aborted"`
+	ResponseTimes   map[string]float64 `json:"response_times"`
+	ResponseCodes   map[string]float64 `json:"response_codes"`
+	Workers         float64            `json:"workers"`
 }
 
 var Metrics metrics
 
-func (this *metrics) Get() metricValues {
-	return metricValues{
+func (this *metrics) Get() MetricValues {
+	return MetricValues{
 		RequestsTotal:   *getCounterValue(this.RequestsTotal),
 		RequestsFailed:  *getCounterValue(this.RequestsFailed),
 		RequestsError:   *getCounterValue(this.RequestsError),
 		RequestsBlength: *getCounterValue(this.RequestsBlength),
 		RequestsAborted: *getCounterValue(this.RequestsAborted),
-		RequestsTime:    getSummaryValue(this.RequestsTime),
-		RequestsCode:    this.GetCodes(),
+		ResponseTimes:   getSummaryValue(this.ResponseTimes),
+		ResponseCodes:   this.GetCodes(),
 		Workers:         *getGaugeValue(this.Workers),
 	}
 }
 
-func (this *metrics) GetCodes() map[int]float64 {
-	r := make(map[int]float64)
-	for i, c := range this.RequestsCode {
-		r[i] = *getCounterValue(c)
+func (this *metrics) GetCodes() map[string]float64 {
+	r := make(map[string]float64)
+	for i, c := range this.ResponseCodes {
+		r[strconv.Itoa(i)] = *getCounterValue(c)
 	}
 	return r
 }
 
 func (this *metrics) GetCodeCounter(code int) prometheus.Counter {
-	if this.RequestsCode[code] == nil {
+	if this.ResponseCodes[code] == nil {
 		this.mutex.Lock()
 		defer this.mutex.Unlock()
-		if this.RequestsCode[code] == nil {
-			this.RequestsCode[code] = promauto.NewCounter(prometheus.CounterOpts{
-				Name:        "netbench_requests_code",
+		if this.ResponseCodes[code] == nil {
+			this.ResponseCodes[code] = promauto.NewCounter(prometheus.CounterOpts{
+				Name:        "netbench_response_codes",
 				Help:        "requests_code",
 				ConstLabels: map[string]string{"code": strconv.Itoa(code)},
 			})
 		}
 	}
-	return this.RequestsCode[code]
+	return this.ResponseCodes[code]
 }
 
 func getGaugeValue(g prometheus.Gauge) *float64 {
@@ -85,13 +86,18 @@ func getCounterValue(c prometheus.Counter) *float64 {
 	return m.GetCounter().Value
 }
 
-func getSummaryValue(s prometheus.Summary) map[float64]float64 {
+func getSummaryValue(s prometheus.Summary) map[string]float64 {
 	m := dto.Metric{}
 	s.Write(&m)
 	q := m.GetSummary().Quantile
-	r := make(map[float64]float64)
+	r := make(map[string]float64)
 	for _, v := range q {
-		r[v.GetQuantile()] = v.GetValue()
+		k := strconv.FormatFloat(v.GetQuantile(), 'f', -1, 64)
+		vv := v.GetValue()
+		if math.IsNaN(vv) {
+			vv = -1
+		}
+		r[k] = vv
 	}
 	return r
 }
@@ -111,19 +117,19 @@ func init() {
 			Help: "requests_error",
 		}),
 		RequestsBlength: promauto.NewCounter(prometheus.CounterOpts{
-			Name: "netbench_requests_blength",
-			Help: "requests_blength",
+			Name: "netbench_requests_failed_bodylength",
+			Help: "requests_failed_bodylength",
 		}),
 		RequestsAborted: promauto.NewCounter(prometheus.CounterOpts{
 			Name: "netbench_requests_aborted",
 			Help: "requests_aborted",
 		}),
-		RequestsTime: promauto.NewSummary(prometheus.SummaryOpts{
-			Name:       "netbench_requests_time",
-			Help:       "requests_time",
+		ResponseTimes: promauto.NewSummary(prometheus.SummaryOpts{
+			Name:       "netbench_response_times",
+			Help:       "response_times",
 			Objectives: map[float64]float64{0: 1, 0.25: 0.075, 0.5: 0.05, 0.75: 0.025, 0.9: 0.01, 0.99: 0.001, 1: 0},
 		}),
-		RequestsCode: make(map[int]prometheus.Counter),
+		ResponseCodes: make(map[int]prometheus.Counter),
 		Workers: promauto.NewGauge(prometheus.GaugeOpts{
 			Name: "netbench_workers",
 			Help: "workers",

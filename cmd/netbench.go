@@ -28,11 +28,15 @@ func init() {
 	flag.StringVar(&flags.WorkerOpts.Method, "http-method", "GET", "HTTP Method to use")
 	flag.Var(&flags.WorkerOpts.Headers, "http-header", "HTTP Headers to use")
 
-	flag.StringVar(&flags.ScalerOpts.Type, "scaler-type", "curve", "Scaler to use")
+	flag.StringVar(&flags.ScalerOpts.Type, "scaler-type", "curve", "Scaler to use (curve, exp[onential], linear, log, sin[e], static)")
 	flag.DurationVar(&flags.ScalerOpts.Period, "scaler-period", time.Minute, "Time to wait between scaler adjustments")
-	flag.Float64Var(&flags.ScalerOpts.Factor, "scaler-factor", 1.5, "Scaling factor different scalers")
-	flag.IntVar(&flags.ScalerOpts.Min, "scaler-min", 0, "Minimum number of workers")
-	flag.IntVar(&flags.ScalerOpts.Max, "scaler-max", runtime.NumCPU()*5, "Maximum number of workers")
+	flag.Float64Var(&flags.ScalerOpts.Factor, "scaler-factor", 1.5, `Scaling factor different scalers:
+- 'static' scaler uses this as the number of workers
+- 'curve' scaler uses this as the exponent
+- 'sine' scaler uses this as the amplitude
+- all other scalers use this as the multiplier`)
+	flag.IntVar(&flags.ScalerOpts.Min, "scaler-min", 0, "Minimum number of workers (does not apply to static scaler)")
+	flag.IntVar(&flags.ScalerOpts.Max, "scaler-max", runtime.NumCPU()*5, "Maximum number of workers (does not apply to static scaler)")
 
 	flag.Parse()
 	if flags.WorkerOpts.URL == "" {
@@ -61,7 +65,8 @@ func signalHandler() {
 }
 
 func main() {
-	logger.Infow("Starting netbench", "Flags", flags)
+	logger.Infow("Starting netbench")
+	logger.Debugw("Starting with configuration", "Flags", flags)
 	go signalHandler()
 
 	ctx, cancel = context.WithTimeout(context.WithValue(context.Background(), "flags", flags), flags.Duration)

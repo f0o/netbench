@@ -79,23 +79,22 @@ func (this *scaler) setScalerFunc() func() float64 {
 		}
 	case "exponential", "exp":
 		return func() float64 {
-			return math.Exp(this.increment)
+			return math.Exp(this.increment) * this.factor
 		}
 	case "linear":
 		return func() float64 {
-			return this.increment
+			return this.increment * this.factor
 		}
 	case "log":
 		return func() float64 {
 			this.increment++
-			return math.Log(this.increment)
+			return math.Log(this.increment) * this.factor
 		}
 	case "static":
 		return func() float64 {
-			this.increment--
-			return this.increment
+			return this.factor
 		}
-	case "sin":
+	case "sin", "sine":
 		return func() float64 {
 			return math.Sin(this.increment/this.factor) * this.max
 		}
@@ -109,6 +108,10 @@ func NewScaler(ctx context.Context) interfaces.Scaler {
 	min := float64(ctx.Value("flags").(interfaces.Flags).ScalerOpts.Min)
 	max := float64(ctx.Value("flags").(interfaces.Flags).ScalerOpts.Max)
 	factor := float64(ctx.Value("flags").(interfaces.Flags).ScalerOpts.Factor)
+	if scaler_type == "static" {
+		min = factor
+		max = factor
+	}
 	return &scaler{
 		ctx:       ctx,
 		scaler:    scaler_type,

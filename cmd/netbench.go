@@ -28,12 +28,18 @@ func init() {
 	flag.StringVar(&flags.WorkerOpts.Method, "http-method", "GET", "HTTP Method to use")
 	flag.Var(&flags.WorkerOpts.Headers, "http-header", "HTTP Headers to use")
 
-	flag.StringVar(&flags.ScalerOpts.Type, "scaler-type", "curve", "Scaler to use (curve, exp[onential], linear, log, sin[e], static)")
+	flag.StringVar(&flags.ScalerOpts.Type, "scaler-type", "curve", `Scaler to use:
+- 'curve': adds workers in a power curve (x^y where x is the increment and y is the factor)
+- 'exp[onential]': adds workers in a base-e exponential curve (e^x where x is the increment)
+- 'linear': adds workers in a linear fashion
+- 'log': adds workers in a natural logarithmic curve
+- 'sin[e]': adds and removes workers in a sine wave
+- 'static': static number of workers`)
 	flag.DurationVar(&flags.ScalerOpts.Period, "scaler-period", time.Minute, "Time to wait between scaler adjustments")
-	flag.Float64Var(&flags.ScalerOpts.Factor, "scaler-factor", 1.5, `Scaling factor different scalers:
+	flag.Float64Var(&flags.ScalerOpts.Factor, "scaler-factor", 1.5, `Scaling factor for scalers:
 - 'static' scaler uses this as the number of workers
 - 'curve' scaler uses this as the exponent
-- 'sine' scaler uses this as the amplitude
+- 'sine' scaler uses this as the frequency
 - all other scalers use this as the multiplier`)
 	flag.IntVar(&flags.ScalerOpts.Min, "scaler-min", 0, "Minimum number of workers (does not apply to static scaler)")
 	flag.IntVar(&flags.ScalerOpts.Max, "scaler-max", runtime.NumCPU()*5, "Maximum number of workers (does not apply to static scaler)")

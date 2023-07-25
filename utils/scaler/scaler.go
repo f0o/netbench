@@ -1,3 +1,6 @@
+// Package scaler implements a scaler for workers
+//
+// The scaler is a simple interface that handles scaling of workers
 package scaler
 
 import (
@@ -11,6 +14,7 @@ import (
 	"go.f0o.dev/netbench/utils/worker"
 )
 
+// Internal Scaler Struct representing the scaler
 type scaler struct {
 	ctx       context.Context
 	interval  time.Duration
@@ -21,6 +25,9 @@ type scaler struct {
 	factor    float64
 }
 
+// Start starts the scaler
+// It will invoke the scaler function every interval to scale the workers
+// It will stop when the context is canceled
 func (this *scaler) Start() error {
 	fn := this.setScalerFunc()
 	d := time.NewTicker(this.interval)
@@ -40,6 +47,7 @@ func (this *scaler) Start() error {
 	}
 }
 
+// scale scales the workers
 func (this *scaler) scale(fn func() float64) {
 	this.increment++
 	old := len(this.workers)
@@ -56,6 +64,7 @@ func (this *scaler) scale(fn func() float64) {
 	}
 }
 
+// spawn spawns a worker
 func (this *scaler) spawn() {
 	wc, wf := context.WithCancel(this.ctx)
 	this.workers = append(this.workers, wf)
@@ -63,6 +72,7 @@ func (this *scaler) spawn() {
 	go ww.Do()
 }
 
+// despawn despawns a worker
 func (this *scaler) despawn() {
 	if len(this.workers) == 0 {
 		return
@@ -71,6 +81,7 @@ func (this *scaler) despawn() {
 	this.workers = this.workers[1:]
 }
 
+// setScalerFunc returns the scaler function
 func (this *scaler) setScalerFunc() func() float64 {
 	switch this.scaler {
 	case "curve":
@@ -102,6 +113,8 @@ func (this *scaler) setScalerFunc() func() float64 {
 	logger.Fatalw("invalid scaler type", "scaler", this.scaler)
 	return nil
 }
+
+// NewScaler returns a new scaler based on the context
 func NewScaler(ctx context.Context) interfaces.Scaler {
 	interval := ctx.Value("flags").(interfaces.Flags).ScalerOpts.Period
 	scaler_type := ctx.Value("flags").(interfaces.Flags).ScalerOpts.Type

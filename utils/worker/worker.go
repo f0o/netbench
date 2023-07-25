@@ -1,3 +1,4 @@
+// Package worker provides the worker interface and worker implementation
 package worker
 
 import (
@@ -12,6 +13,7 @@ import (
 	"go.f0o.dev/netbench/utils/prometheus"
 )
 
+// worker is the internal worker struct representing a single worker
 type worker struct {
 	ctx     context.Context
 	target  string
@@ -20,10 +22,13 @@ type worker struct {
 	blen    int
 }
 
+// Do performs the actual work
+// it returns an error if the context is canceled or deadline exceeded
 func (this *worker) Do() error {
 	for {
 		select {
 		case <-this.ctx.Done():
+			logger.Debug("context done, quitting")
 			return this.ctx.Err()
 		default:
 			req, _ := http.NewRequestWithContext(this.ctx, this.method, this.target, nil)
@@ -38,7 +43,7 @@ func (this *worker) Do() error {
 				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					logger.Debug("context canceled or deadline exceeded")
 					prometheus.Metrics.RequestsAborted.Inc()
-					return err
+					continue
 				}
 				logger.Debug("net/http error: %+v", err)
 				prometheus.Metrics.RequestsFailed.Inc()
@@ -64,6 +69,7 @@ func (this *worker) Do() error {
 	}
 }
 
+// NewWorker returns a new worker based on the context
 func NewWorker(ctx context.Context) interfaces.Worker {
 	target := ctx.Value("flags").(interfaces.Flags).WorkerOpts.URL
 	method := ctx.Value("flags").(interfaces.Flags).WorkerOpts.Method

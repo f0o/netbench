@@ -29,6 +29,7 @@ func init() {
 	flag.StringVar(&flags.WorkerOpts.URL, "http-url", "", "Target URL to benchmark")
 	flag.StringVar(&flags.WorkerOpts.Method, "http-method", "GET", "HTTP Method to use")
 	flag.Var(&flags.WorkerOpts.Headers, "http-header", "HTTP Headers to use")
+	flag.BoolVar(&flags.WorkerOpts.Follow, "http-follow", false, "Follow redirects")
 
 	flag.StringVar(&flags.ScalerOpts.Type, "scaler-type", "curve", `Scaler to use:
 - 'curve': adds workers in a power curve (x^y where x is the increment and y is the factor)
@@ -79,8 +80,11 @@ func outputText(stop time.Duration, metrics prometheus.MetricValues) {
 	fmt.Printf("   Runtime Error : %+v\n", metrics.RequestsError)
 	fmt.Printf("   Aborted       : %+v\n", metrics.RequestsAborted)
 	fmt.Printf("   Body Length   : %+v\n", metrics.RequestsBlength)
-	fmt.Printf("   Status Code   : %+v\n", metrics.ResponseCodes)
-	fmt.Printf("Average RPS      : %+v\n", metrics.RequestsTotal/stop.Seconds())
+	fmt.Println("Status Codes")
+	for code, count := range metrics.ResponseCodes {
+		fmt.Printf("   %+v           : %+v\n", code, count)
+	}
+	fmt.Printf("Average Req/Sec  : %+v\n", metrics.RequestsTotal/stop.Seconds())
 	fmt.Printf("Average Latency  : %+v\n", time.Duration(metrics.ResponseTimes["0.5"]))
 	fmt.Printf("    Max Latency  : %+v\n", time.Duration(metrics.ResponseTimes["1"]))
 	fmt.Printf("    99%% Latency  : %+v\n", time.Duration(metrics.ResponseTimes["0.99"]))
@@ -92,7 +96,7 @@ func outputText(stop time.Duration, metrics prometheus.MetricValues) {
 }
 
 func main() {
-	logger.Infow("Starting netbench")
+	logger.Info("Starting netbench")
 	logger.Debugw("Starting with configuration", "Flags", flags)
 	go signalHandler()
 

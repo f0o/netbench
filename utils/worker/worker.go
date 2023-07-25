@@ -16,6 +16,7 @@ import (
 // worker is the internal worker struct representing a single worker
 type worker struct {
 	ctx     context.Context
+	client  *http.Client
 	target  string
 	method  string
 	headers map[string]string
@@ -36,7 +37,7 @@ func (this *worker) Do() error {
 				req.Header.Add(k, v)
 			}
 			start := time.Now()
-			resp, err := http.DefaultClient.Do(req)
+			resp, err := this.client.Do(req)
 			stop := time.Since(start)
 			prometheus.Metrics.RequestsTotal.Inc()
 			if err != nil {
@@ -74,10 +75,20 @@ func NewWorker(ctx context.Context) interfaces.Worker {
 	target := ctx.Value("flags").(interfaces.Flags).WorkerOpts.URL
 	method := ctx.Value("flags").(interfaces.Flags).WorkerOpts.Method
 	headers := ctx.Value("flags").(interfaces.Flags).WorkerOpts.Headers
+	follow := ctx.Value("flags").(interfaces.Flags).WorkerOpts.Follow
+	client := http.DefaultClient
+	if !follow {
+		client = &http.Client{
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		}
+	}
 	return &worker{
 		ctx:     ctx,
 		target:  target,
 		method:  method,
 		headers: headers,
+		client:  client,
 	}
 }

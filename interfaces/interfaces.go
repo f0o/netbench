@@ -27,6 +27,7 @@ type WorkerOpts struct {
 	URL     string
 	Method  string
 	Headers HTTPHeaders
+	Follow  bool
 }
 
 type HTTPHeaders map[string]string

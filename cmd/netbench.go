@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
 	"time"
 
 	"go.f0o.dev/netbench/interfaces"
@@ -17,19 +18,28 @@ import (
 var flags interfaces.Flags
 
 func init() {
-	flag.Float64Var(&flags.Curve, "curve", 1.5, "The exponent to apply to f(x)=x^c where x is an increment (0=none,1=linear,2=exponential,...)")
-	flag.DurationVar(&flags.Interval, "interval", time.Minute, "Seconds to wait between curve increment increase")
-	flag.DurationVar(&flags.Duration, "duration", 15*time.Minute, "Duration of benchmark in seconds")
-	flag.StringVar(&flags.Target, "target", "", "Target URL to benchmark")
-	flag.StringVar(&flags.Prometheus.Bind, "prometheus-bind", ":8080", "Address to bind Prometheus metrics server")
-	flag.BoolVar(&flags.Prometheus.Enable, "prometheus-enable", false, "Enable Prometheus metrics server")
+	flag.DurationVar(&flags.Duration, "duration", 15*time.Minute, "Duration of benchmark")
+
+	flag.BoolVar(&flags.PrometheusOpts.Enabled, "prometheus-enable", false, "Enable Prometheus metrics server")
+	flag.StringVar(&flags.PrometheusOpts.Bind, "prometheus-bind", ":8080", "Address to bind Prometheus metrics server")
+
+	flags.WorkerOpts.Headers = make(map[string]string)
+	flag.StringVar(&flags.WorkerOpts.URL, "http-url", "", "Target URL to benchmark")
+	flag.StringVar(&flags.WorkerOpts.Method, "http-method", "GET", "HTTP Method to use")
+	flag.Var(&flags.WorkerOpts.Headers, "http-header", "HTTP Headers to use")
+
+	flag.StringVar(&flags.ScalerOpts.Type, "scaler-type", "curve", "Scaler to use")
+	flag.DurationVar(&flags.ScalerOpts.Period, "scaler-period", time.Minute, "Time to wait between scaler adjustments")
+	flag.Float64Var(&flags.ScalerOpts.Factor, "scaler-factor", 1.5, "Scaling factor different scalers")
+	flag.IntVar(&flags.ScalerOpts.Min, "scaler-min", 0, "Minimum number of workers")
+	flag.IntVar(&flags.ScalerOpts.Max, "scaler-max", runtime.NumCPU()*5, "Maximum number of workers")
+
 	flag.Parse()
-	if flags.Target == "" {
+	if flags.WorkerOpts.URL == "" {
 		logger.Fatalw("Missing Target parameter, Check --help", "Flags", flags)
 	}
-	logger.Debugw("Flags Parsed", "Flags", flags)
-	if flags.Prometheus.Enable {
-		go prometheus.Start(flags.Prometheus.Bind)
+	if flags.PrometheusOpts.Enabled {
+		go prometheus.Start(flags.PrometheusOpts.Bind)
 	}
 }
 
@@ -51,7 +61,7 @@ func signalHandler() {
 }
 
 func main() {
-	logger.Info("Starting netbench")
+	logger.Infow("Starting netbench", "Flags", flags)
 	go signalHandler()
 
 	ctx, cancel = context.WithTimeout(context.WithValue(context.Background(), "flags", flags), flags.Duration)
@@ -68,6 +78,7 @@ func main() {
 	fmt.Printf("Total Requests   : %+v\n", metrics.RequestsTotal)
 	fmt.Printf("Failed Requests  : %+v\n", metrics.RequestsFailed)
 	fmt.Printf("   Runtime Error : %+v\n", metrics.RequestsError)
+	fmt.Printf("   Aborted       : %+v\n", metrics.RequestsAborted)
 	fmt.Printf("   Body Length   : %+v\n", metrics.RequestsBlength)
 	fmt.Printf("   Status Code   : %+v\n", metrics.RequestsCode)
 	fmt.Printf("Average RPS      : %+v\n", metrics.RequestsTotal/stop.Seconds())

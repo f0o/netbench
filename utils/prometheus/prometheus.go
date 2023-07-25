@@ -18,6 +18,7 @@ type metrics struct {
 	RequestsFailed  prometheus.Counter
 	RequestsError   prometheus.Counter
 	RequestsBlength prometheus.Counter
+	RequestsAborted prometheus.Counter
 	RequestsTime    prometheus.Summary
 	RequestsCode    map[int]prometheus.Counter
 	Workers         prometheus.Gauge
@@ -28,6 +29,7 @@ type metricValues struct {
 	RequestsFailed  float64
 	RequestsError   float64
 	RequestsBlength float64
+	RequestsAborted float64
 	RequestsTime    map[float64]float64
 	RequestsCode    map[int]float64
 	Workers         float64
@@ -41,6 +43,7 @@ func (this *metrics) Get() metricValues {
 		RequestsFailed:  *getCounterValue(this.RequestsFailed),
 		RequestsError:   *getCounterValue(this.RequestsError),
 		RequestsBlength: *getCounterValue(this.RequestsBlength),
+		RequestsAborted: *getCounterValue(this.RequestsAborted),
 		RequestsTime:    getSummaryValue(this.RequestsTime),
 		RequestsCode:    this.GetCodes(),
 		Workers:         *getGaugeValue(this.Workers),
@@ -110,6 +113,10 @@ func init() {
 		RequestsBlength: promauto.NewCounter(prometheus.CounterOpts{
 			Name: "netbench_requests_blength",
 			Help: "requests_blength",
+		}),
+		RequestsAborted: promauto.NewCounter(prometheus.CounterOpts{
+			Name: "netbench_requests_aborted",
+			Help: "requests_aborted",
 		}),
 		RequestsTime: promauto.NewSummary(prometheus.SummaryOpts{
 			Name:       "netbench_requests_time",

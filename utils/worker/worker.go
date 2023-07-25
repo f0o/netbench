@@ -13,10 +13,11 @@ import (
 )
 
 type worker struct {
-	ctx    context.Context
-	target string
-	method string
-	blen   int
+	ctx     context.Context
+	target  string
+	method  string
+	headers map[string]string
+	blen    int
 }
 
 func (this *worker) Do() error {
@@ -26,6 +27,9 @@ func (this *worker) Do() error {
 			return this.ctx.Err()
 		default:
 			req, _ := http.NewRequestWithContext(this.ctx, this.method, this.target, nil)
+			for k, v := range this.headers {
+				req.Header.Add(k, v)
+			}
 			start := time.Now()
 			resp, err := http.DefaultClient.Do(req)
 			stop := time.Since(start)
@@ -33,9 +37,10 @@ func (this *worker) Do() error {
 			if err != nil {
 				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					logger.Debug("context canceled or deadline exceeded")
-					break
+					prometheus.Metrics.RequestsAborted.Inc()
+					return err
 				}
-				logger.Error("net/http error: %+v", err)
+				logger.Debug("net/http error: %+v", err)
 				prometheus.Metrics.RequestsFailed.Inc()
 				prometheus.Metrics.RequestsError.Inc()
 				continue
@@ -60,10 +65,13 @@ func (this *worker) Do() error {
 }
 
 func NewWorker(ctx context.Context) interfaces.Worker {
-	target := ctx.Value("flags").(interfaces.Flags).Target
+	target := ctx.Value("flags").(interfaces.Flags).WorkerOpts.URL
+	method := ctx.Value("flags").(interfaces.Flags).WorkerOpts.Method
+	headers := ctx.Value("flags").(interfaces.Flags).WorkerOpts.Headers
 	return &worker{
-		ctx:    ctx,
-		target: target,
-		method: "GET",
+		ctx:     ctx,
+		target:  target,
+		method:  method,
+		headers: headers,
 	}
 }

@@ -13,18 +13,19 @@ import (
 
 type scaler struct {
 	ctx       context.Context
-	curve     float64
 	interval  time.Duration
 	increment float64
 	workers   []context.CancelFunc
+	scaler    string
+	min, max  float64
+	factor    float64
 }
 
 func (this *scaler) Start() error {
-	// this.prometheus.NewCounterFunc("workers", func() float64 {
-	// 	return float64(len(this.workers))
-	// })
+	fn := this.setScalerFunc()
 	d := time.NewTicker(this.interval)
-	this.scale()
+	defer d.Stop()
+	this.scale(fn)
 	for {
 		select {
 		case <-this.ctx.Done():
@@ -34,31 +35,87 @@ func (this *scaler) Start() error {
 			}
 			return this.ctx.Err()
 		case <-d.C:
-			this.scale()
+			this.scale(fn)
 		}
 	}
-
 }
 
-func (this *scaler) scale() {
+func (this *scaler) scale(fn func() float64) {
 	this.increment++
-	for w := float64(len(this.workers)); w < math.Round(math.Pow(this.increment, this.curve)); w++ {
-		wc, wf := context.WithCancel(this.ctx)
-		this.workers = append(this.workers, wf)
-		ww := worker.NewWorker(wc)
-		go ww.Do()
+	old := len(this.workers)
+	target := math.Min(math.Max(math.Round(math.Abs(fn())), this.min), this.max)
+	for w := float64(len(this.workers)); w < target; w++ {
+		this.spawn()
 	}
-	prometheus.Metrics.Workers.Set(float64(len(this.workers)))
-	logger.Info("Scaled up to %d workers", len(this.workers))
+	for w := float64(len(this.workers)); w > target; w-- {
+		this.despawn()
+	}
+	if old != len(this.workers) {
+		prometheus.Metrics.Workers.Set(float64(len(this.workers)))
+		logger.Info("Scaled to %d workers", len(this.workers))
+	}
 }
 
+func (this *scaler) spawn() {
+	wc, wf := context.WithCancel(this.ctx)
+	this.workers = append(this.workers, wf)
+	ww := worker.NewWorker(wc)
+	go ww.Do()
+}
+
+func (this *scaler) despawn() {
+	if len(this.workers) == 0 {
+		return
+	}
+	go this.workers[0]()
+	this.workers = this.workers[1:]
+}
+
+func (this *scaler) setScalerFunc() func() float64 {
+	switch this.scaler {
+	case "curve":
+		return func() float64 {
+			return math.Pow(this.increment, this.factor)
+		}
+	case "exponential", "exp":
+		return func() float64 {
+			return math.Exp(this.increment)
+		}
+	case "linear":
+		return func() float64 {
+			return this.increment
+		}
+	case "log":
+		return func() float64 {
+			this.increment++
+			return math.Log(this.increment)
+		}
+	case "static":
+		return func() float64 {
+			this.increment--
+			return this.increment
+		}
+	case "sin":
+		return func() float64 {
+			return math.Sin(this.increment/this.factor) * this.max
+		}
+	}
+	logger.Fatalw("invalid scaler type", "scaler", this.scaler)
+	return nil
+}
 func NewScaler(ctx context.Context) interfaces.Scaler {
-	curve := ctx.Value("flags").(interfaces.Flags).Curve
-	interval := ctx.Value("flags").(interfaces.Flags).Interval
+	interval := ctx.Value("flags").(interfaces.Flags).ScalerOpts.Period
+	scaler_type := ctx.Value("flags").(interfaces.Flags).ScalerOpts.Type
+	min := float64(ctx.Value("flags").(interfaces.Flags).ScalerOpts.Min)
+	max := float64(ctx.Value("flags").(interfaces.Flags).ScalerOpts.Max)
+	factor := float64(ctx.Value("flags").(interfaces.Flags).ScalerOpts.Factor)
 	return &scaler{
 		ctx:       ctx,
+		scaler:    scaler_type,
 		increment: 0,
-		curve:     curve,
 		interval:  interval,
+		min:       min,
+		max:       max,
+		factor:    factor,
 	}
 }

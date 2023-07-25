@@ -3,8 +3,6 @@ package logger
 import (
 	"os"
 
-	"go.elastic.co/ecszap"
-	"go.f0o.dev/netbench/interfaces"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -13,48 +11,85 @@ type logger struct {
 	logger *zap.SugaredLogger
 }
 
-func NewLogger(fields ...interface{}) interfaces.Logger {
-	var l zapcore.Level
+var DefaultLogger logger
+
+func init() {
+	var z zap.Config
+	atom := zap.NewAtomicLevel()
 	switch os.Getenv("LOG_LEVEL") {
 	case "fatal", "FATAL":
-		l = zapcore.FatalLevel
+		atom.SetLevel(zapcore.FatalLevel)
 	case "panic", "PANIC":
-		l = zapcore.PanicLevel
+		atom.SetLevel(zapcore.PanicLevel)
 	case "dpanic", "DPANIC":
-		l = zapcore.DPanicLevel
+		atom.SetLevel(zapcore.DPanicLevel)
 	case "error", "ERROR":
-		l = zapcore.ErrorLevel
+		atom.SetLevel(zapcore.ErrorLevel)
 	case "warn", "WARN", "":
-		l = zapcore.WarnLevel
+		atom.SetLevel(zapcore.WarnLevel)
 	case "info", "INFO":
-		l = zapcore.InfoLevel
+		atom.SetLevel(zapcore.InfoLevel)
 	case "debug", "DEBUG":
-		l = zapcore.DebugLevel
+		atom.SetLevel(zapcore.DebugLevel)
 	default:
 		panic("illegal LOG_LEVEL supplied")
 	}
-	r := logger{}
-	encoderConfig := ecszap.NewDefaultEncoderConfig()
-	core := ecszap.NewCore(encoderConfig, os.Stderr, l)
-	r.logger = zap.New(core, zap.AddCaller(), zap.AddCallerSkip(2)).Sugar().With(fields...)
-	return &r
+
+	if os.Getenv("ENV") == "prod" {
+		z = zap.NewProductionConfig()
+	} else {
+		z = zap.NewDevelopmentConfig()
+	}
+
+	z.Level = atom
+	t, _ := z.Build(zap.AddCallerSkip(1))
+	DefaultLogger = logger{
+		logger: t.Sugar(),
+	}
 }
 
-func (this *logger) Debug(msg string, fields ...interface{}) {
-	this.logger.Debugf(msg, fields...)
+// printf styled loggers
+func Debug(msg string, fields ...interface{}) {
+	DefaultLogger.logger.Debugf(msg, fields...)
 }
-func (this *logger) Info(msg string, fields ...interface{}) {
-	this.logger.Infof(msg, fields...)
+func Info(msg string, fields ...interface{}) {
+	DefaultLogger.logger.Infof(msg, fields...)
 }
-func (this *logger) Warn(msg string, fields ...interface{}) {
-	this.logger.Warnf(msg, fields...)
+func Warn(msg string, fields ...interface{}) {
+	DefaultLogger.logger.Warnf(msg, fields...)
 }
-func (this *logger) Error(msg string, fields ...interface{}) {
-	this.logger.Errorf(msg, fields...)
+func Error(msg string, fields ...interface{}) {
+	DefaultLogger.logger.Errorf(msg, fields...)
 }
-func (this *logger) Fatal(msg string, fields ...interface{}) {
-	this.logger.Fatalf(msg, fields...)
+func Panic(msg string, fields ...interface{}) {
+	DefaultLogger.logger.Panicf(msg, fields...)
 }
-func (this *logger) Child(fields ...interface{}) interfaces.Logger {
-	return &logger{logger: this.logger.With(fields...)}
+func DPanic(msg string, fields ...interface{}) {
+	DefaultLogger.logger.DPanicf(msg, fields...)
+}
+func Fatal(msg string, fields ...interface{}) {
+	DefaultLogger.logger.Fatalf(msg, fields...)
+}
+
+// structured loggers
+func Debugw(msg string, keysAndValues ...interface{}) {
+	DefaultLogger.logger.Debugw(msg, keysAndValues...)
+}
+func Infow(msg string, keysAndValues ...interface{}) {
+	DefaultLogger.logger.Infow(msg, keysAndValues...)
+}
+func Warnw(msg string, keysAndValues ...interface{}) {
+	DefaultLogger.logger.Warnw(msg, keysAndValues...)
+}
+func Errorw(msg string, keysAndValues ...interface{}) {
+	DefaultLogger.logger.Errorw(msg, keysAndValues...)
+}
+func Panicw(msg string, keysAndValues ...interface{}) {
+	DefaultLogger.logger.Panicw(msg, keysAndValues...)
+}
+func DPanicw(msg string, keysAndValues ...interface{}) {
+	DefaultLogger.logger.DPanicw(msg, keysAndValues...)
+}
+func Fatalw(msg string, keysAndValues ...interface{}) {
+	DefaultLogger.logger.Fatalw(msg, keysAndValues...)
 }

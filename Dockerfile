@@ -1,15 +1,16 @@
 FROM golang:alpine AS builder
 
-ADD . /opt
+WORKDIR /opt/netbench
 
-WORKDIR /opt
+ADD . /opt/netbench
 
 RUN go build cmd/netbench.go
 
 FROM alpine AS final
 
-COPY --from=builder /opt/netbench /netbench
+COPY --from=builder /opt/netbench/netbench /netbench
 
+ENV ENV=prod
 ENTRYPOINT [ "/netbench" ]
 
 CMD [ "--help" ]

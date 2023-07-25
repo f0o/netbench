@@ -21,13 +21,16 @@ func init() {
 	flag.DurationVar(&flags.Interval, "interval", time.Minute, "Seconds to wait between curve increment increase")
 	flag.DurationVar(&flags.Duration, "duration", 15*time.Minute, "Duration of benchmark in seconds")
 	flag.StringVar(&flags.Target, "target", "", "Target URL to benchmark")
+	flag.StringVar(&flags.Prometheus.Bind, "prometheus-bind", ":8080", "Address to bind Prometheus metrics server")
+	flag.BoolVar(&flags.Prometheus.Enable, "prometheus-enable", false, "Enable Prometheus metrics server")
 	flag.Parse()
 	if flags.Target == "" {
-		fmt.Println("Missing Target parameter")
-		flag.PrintDefaults()
-		os.Exit(2)
+		logger.Fatalw("Missing Target parameter, Check --help", "Flags", flags)
 	}
-	logger.Debug("flags: %+v\n", flags)
+	logger.Debugw("Flags Parsed", "Flags", flags)
+	if flags.Prometheus.Enable {
+		go prometheus.Start(flags.Prometheus.Bind)
+	}
 }
 
 var ctx context.Context
@@ -42,17 +45,16 @@ func signalHandler() {
 			logger.Warn("Signal %s Received; Canceling", sig)
 			cancel()
 		} else {
-			logger.Error("Signal %s Received; Cancel is %+v - Exiting", sig, cancel)
-			os.Exit(7)
+			logger.Fatal("Signal %s Received; Cancel is %+v - Exiting", sig, cancel)
 		}
 	}
 }
 
 func main() {
 	logger.Info("Starting netbench")
+	go signalHandler()
 
 	ctx, cancel = context.WithTimeout(context.WithValue(context.Background(), "flags", flags), flags.Duration)
-	go signalHandler()
 	start := time.Now()
 	go scaler.NewScaler(ctx).Start()
 	<-ctx.Done()

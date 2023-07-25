@@ -3,14 +3,17 @@ package prometheus
 import (
 	"net/http"
 	"strconv"
+	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	dto "github.com/prometheus/client_model/go"
+	"go.f0o.dev/netbench/utils/logger"
 )
 
 type metrics struct {
+	mutex           sync.Mutex
 	RequestsTotal   prometheus.Counter
 	RequestsFailed  prometheus.Counter
 	RequestsError   prometheus.Counter
@@ -54,11 +57,15 @@ func (this *metrics) GetCodes() map[int]float64 {
 
 func (this *metrics) GetCodeCounter(code int) prometheus.Counter {
 	if this.RequestsCode[code] == nil {
-		this.RequestsCode[code] = promauto.NewCounter(prometheus.CounterOpts{
-			Name:        "netbench_requests_code",
-			Help:        "requests_code",
-			ConstLabels: map[string]string{"code": strconv.Itoa(code)},
-		})
+		this.mutex.Lock()
+		defer this.mutex.Unlock()
+		if this.RequestsCode[code] == nil {
+			this.RequestsCode[code] = promauto.NewCounter(prometheus.CounterOpts{
+				Name:        "netbench_requests_code",
+				Help:        "requests_code",
+				ConstLabels: map[string]string{"code": strconv.Itoa(code)},
+			})
+		}
 	}
 	return this.RequestsCode[code]
 }
@@ -115,7 +122,13 @@ func init() {
 			Help: "workers",
 		}),
 	}
+}
 
+func Start(bind string) error {
 	http.Handle("/metrics", promhttp.Handler())
-	go http.ListenAndServe(":8080", nil)
+	err := http.ListenAndServe(bind, nil)
+	if err != nil {
+		logger.Fatalw("Prometheus Error: %+v", err)
+	}
+	return err
 }

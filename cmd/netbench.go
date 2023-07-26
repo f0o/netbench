@@ -35,7 +35,7 @@ func init() {
 - 'curve': adds workers in a power curve (x^y where x is the increment and y is the factor)
 - 'exp[onential]': adds workers in a base-e exponential curve (e^x where x is the increment)
 - 'linear': adds workers in a linear fashion
-- 'log': adds workers in a natural logarithmic curve
+- 'log[arithmic]': adds workers in a natural logarithmic curve
 - 'sin[e]': adds and removes workers in a sine wave
 - 'static': static number of workers`)
 	flag.DurationVar(&flags.ScalerOpts.Period, "scaler-period", time.Minute, "Time to wait between scaler adjustments")

@@ -100,8 +100,8 @@ func main() {
 	logger.Debugw("Starting with configuration", "Flags", flags)
 	go signalHandler()
 
-	ctx, cancel = context.WithTimeout(context.WithValue(context.Background(), "flags", flags), flags.Duration)
-	go scaler.NewScaler(ctx).Start()
+	ctx, cancel = context.WithTimeout(context.Background(), flags.Duration)
+	go scaler.NewScaler(ctx, &flags.ScalerOpts, &flags.WorkerOpts).Start()
 	<-ctx.Done()
 
 	metrics := prometheus.Metrics.Get()

@@ -71,13 +71,11 @@ func (this *worker) Do() error {
 }
 
 // NewWorker returns a new worker based on the context
-func NewWorker(ctx context.Context) interfaces.Worker {
-	target := ctx.Value("flags").(interfaces.Flags).WorkerOpts.URL
-	method := ctx.Value("flags").(interfaces.Flags).WorkerOpts.Method
-	headers := ctx.Value("flags").(interfaces.Flags).WorkerOpts.Headers
-	follow := ctx.Value("flags").(interfaces.Flags).WorkerOpts.Follow
+// it uses the context to get the target, method, headers and follow flags
+// it returns a worker interface
+func NewWorker(ctx context.Context, worker_opts *interfaces.WorkerOpts) interfaces.Worker {
 	client := http.DefaultClient
-	if !follow {
+	if !worker_opts.Follow {
 		client = &http.Client{
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				return http.ErrUseLastResponse
@@ -86,9 +84,9 @@ func NewWorker(ctx context.Context) interfaces.Worker {
 	}
 	return &worker{
 		ctx:     ctx,
-		target:  target,
-		method:  method,
-		headers: headers,
+		target:  worker_opts.URL,
+		method:  worker_opts.Method,
+		headers: worker_opts.Headers,
 		client:  client,
 	}
 }

@@ -16,13 +16,14 @@ import (
 
 // Internal Scaler Struct representing the scaler
 type scaler struct {
-	ctx       context.Context
-	interval  time.Duration
-	increment float64
-	workers   []context.CancelFunc
-	scaler    string
-	min, max  float64
-	factor    float64
+	ctx        context.Context
+	interval   time.Duration
+	increment  float64
+	workers    []context.CancelFunc
+	scaler     string
+	min, max   float64
+	factor     float64
+	workeropts *interfaces.WorkerOpts
 }
 
 // Start starts the scaler
@@ -68,7 +69,7 @@ func (this *scaler) scale(fn func() float64) {
 func (this *scaler) spawn() {
 	wc, wf := context.WithCancel(this.ctx)
 	this.workers = append(this.workers, wf)
-	ww := worker.NewWorker(wc)
+	ww := worker.NewWorker(wc, this.workeropts)
 	go ww.Do()
 }
 
@@ -96,16 +97,15 @@ func (this *scaler) setScalerFunc() func() float64 {
 		return func() float64 {
 			return this.increment * this.factor
 		}
-	case "log":
+	case "logarithmic", "log":
 		return func() float64 {
-			this.increment++
 			return math.Log(this.increment) * this.factor
 		}
 	case "static":
 		return func() float64 {
 			return this.factor
 		}
-	case "sin", "sine":
+	case "sine", "sin":
 		return func() float64 {
 			return math.Sin(this.increment/this.factor) * this.max
 		}
@@ -115,23 +115,21 @@ func (this *scaler) setScalerFunc() func() float64 {
 }
 
 // NewScaler returns a new scaler based on the context
-func NewScaler(ctx context.Context) interfaces.Scaler {
-	interval := ctx.Value("flags").(interfaces.Flags).ScalerOpts.Period
-	scaler_type := ctx.Value("flags").(interfaces.Flags).ScalerOpts.Type
-	min := float64(ctx.Value("flags").(interfaces.Flags).ScalerOpts.Min)
-	max := float64(ctx.Value("flags").(interfaces.Flags).ScalerOpts.Max)
-	factor := float64(ctx.Value("flags").(interfaces.Flags).ScalerOpts.Factor)
-	if scaler_type == "static" {
-		min = factor
-		max = factor
+func NewScaler(ctx context.Context, scaler_opts *interfaces.ScalerOpts, worker_opts *interfaces.WorkerOpts) interfaces.Scaler {
+	min := float64(scaler_opts.Min)
+	max := float64(scaler_opts.Max)
+	if scaler_opts.Type == "static" {
+		min = scaler_opts.Factor
+		max = scaler_opts.Factor
 	}
 	return &scaler{
-		ctx:       ctx,
-		scaler:    scaler_type,
-		increment: 0,
-		interval:  interval,
-		min:       min,
-		max:       max,
-		factor:    factor,
+		ctx:        ctx,
+		scaler:     scaler_opts.Type,
+		increment:  0,
+		interval:   scaler_opts.Period,
+		min:        min,
+		max:        max,
+		factor:     scaler_opts.Factor,
+		workeropts: worker_opts,
 	}
 }

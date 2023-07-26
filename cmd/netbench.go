@@ -73,8 +73,8 @@ func signalHandler() {
 	}
 }
 
-func outputText(stop time.Duration, metrics prometheus.MetricValues) {
-	fmt.Printf("Run Duration     : %+v\n", stop)
+func outputText(metrics prometheus.MetricValues) {
+	fmt.Printf("Run Duration     : %+v\n", metrics.Duration)
 	fmt.Printf("Total Requests   : %+v\n", metrics.RequestsTotal)
 	fmt.Printf("Failed Requests  : %+v\n", metrics.RequestsFailed)
 	fmt.Printf("   Runtime Error : %+v\n", metrics.RequestsError)
@@ -84,7 +84,7 @@ func outputText(stop time.Duration, metrics prometheus.MetricValues) {
 	for code, count := range metrics.ResponseCodes {
 		fmt.Printf("   %+v           : %+v\n", code, count)
 	}
-	fmt.Printf("Average Req/Sec  : %+v\n", metrics.RequestsTotal/stop.Seconds())
+	fmt.Printf("Average Req/Sec  : %+v\n", metrics.RequestsPerSec)
 	fmt.Printf("Average Latency  : %+v\n", time.Duration(metrics.ResponseTimes["0.5"]))
 	fmt.Printf("    Max Latency  : %+v\n", time.Duration(metrics.ResponseTimes["1"]))
 	fmt.Printf("    99%% Latency  : %+v\n", time.Duration(metrics.ResponseTimes["0.99"]))
@@ -101,18 +101,14 @@ func main() {
 	go signalHandler()
 
 	ctx, cancel = context.WithTimeout(context.WithValue(context.Background(), "flags", flags), flags.Duration)
-	start := time.Now()
 	go scaler.NewScaler(ctx).Start()
 	<-ctx.Done()
-	stop := time.Since(start)
-
-	time.Sleep(time.Second)
 
 	metrics := prometheus.Metrics.Get()
 
 	switch flags.Format {
 	case "text":
-		outputText(stop, metrics)
+		outputText(metrics)
 	case "json":
 		json_metrics, err := json.Marshal(metrics)
 		if err != nil {

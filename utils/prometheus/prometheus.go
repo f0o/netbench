@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -23,6 +24,7 @@ type metrics struct {
 	ResponseTimes   prometheus.Summary
 	ResponseCodes   map[int]prometheus.Counter
 	Workers         prometheus.Gauge
+	Start           time.Time
 }
 
 type MetricValues struct {
@@ -34,12 +36,14 @@ type MetricValues struct {
 	ResponseTimes   map[string]float64 `json:"response_times"`
 	ResponseCodes   map[string]float64 `json:"response_codes"`
 	Workers         float64            `json:"workers"`
+	Duration        time.Duration            `json:"duration"`
+	RequestsPerSec  float64            `json:"requests_per_sec"`
 }
 
 var Metrics metrics
 
 func (this *metrics) Get() MetricValues {
-	return MetricValues{
+	m := MetricValues{
 		RequestsTotal:   *getCounterValue(this.RequestsTotal),
 		RequestsFailed:  *getCounterValue(this.RequestsFailed),
 		RequestsError:   *getCounterValue(this.RequestsError),
@@ -48,7 +52,10 @@ func (this *metrics) Get() MetricValues {
 		ResponseTimes:   getSummaryValue(this.ResponseTimes),
 		ResponseCodes:   this.GetCodes(),
 		Workers:         *getGaugeValue(this.Workers),
+		Duration:		time.Since(this.Start),
 	}
+	m.RequestsPerSec = m.RequestsTotal / m.Duration.Seconds()
+	return m
 }
 
 func (this *metrics) GetCodes() map[string]float64 {
@@ -104,6 +111,7 @@ func getSummaryValue(s prometheus.Summary) map[string]float64 {
 
 func init() {
 	Metrics = metrics{
+		Start: time.Now(),
 		RequestsTotal: promauto.NewCounter(prometheus.CounterOpts{
 			Name: "netbench_requests_total",
 			Help: "requests_total",

@@ -36,13 +36,15 @@ type MetricValues struct {
 	ResponseTimes   map[string]float64 `json:"response_times"`
 	ResponseCodes   map[string]float64 `json:"response_codes"`
 	Workers         float64            `json:"workers"`
-	Duration        time.Duration            `json:"duration"`
+	Duration        time.Duration      `json:"duration"`
 	RequestsPerSec  float64            `json:"requests_per_sec"`
 }
 
 var Metrics metrics
 
 func (this *metrics) Get() MetricValues {
+	d := time.Since(this.Start)
+	time.Sleep(1 * time.Second)
 	m := MetricValues{
 		RequestsTotal:   *getCounterValue(this.RequestsTotal),
 		RequestsFailed:  *getCounterValue(this.RequestsFailed),
@@ -52,10 +54,29 @@ func (this *metrics) Get() MetricValues {
 		ResponseTimes:   getSummaryValue(this.ResponseTimes),
 		ResponseCodes:   this.GetCodes(),
 		Workers:         *getGaugeValue(this.Workers),
-		Duration:		time.Since(this.Start),
+		Duration:        d,
 	}
 	m.RequestsPerSec = m.RequestsTotal / m.Duration.Seconds()
+
+	m.sanityCheck()
+
 	return m
+}
+
+func (this *MetricValues) sanityCheck() {
+	total3 := this.RequestsError + this.RequestsBlength
+	total4 := 0.0
+	for i := 200; i < 300; i++ {
+		total4 += this.ResponseCodes[strconv.Itoa(i)]
+	}
+
+	if this.RequestsFailed != total3 {
+		logger.Warnw("Total Failed Requests does not match", "Total Failed", this.RequestsFailed, "Total Errors", total3)
+	}
+
+	if this.RequestsTotal != this.RequestsFailed+total4+this.RequestsAborted {
+		logger.Warnw("Total Requests does not match", "Total Requests", this.RequestsTotal, "Total Failed", total3, "Total 200", total4, "Total Aborted", this.RequestsAborted)
+	}
 }
 
 func (this *metrics) GetCodes() map[string]float64 {

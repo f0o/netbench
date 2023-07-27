@@ -1,5 +1,7 @@
 # .github/workflows/release.yaml
 
+name: Release
+
 on:
   release:
     types: [created]
@@ -31,5 +33,5 @@ jobs:
         goarch: ${{ matrix.goarch }}
         project_path: "./cmd"
         binary_name: "netbench"
-        extra_files: LICENSE README.md
+        extra_files: LICENSE
         build_args: "-ldflags '-s -w'"

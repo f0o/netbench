@@ -57,7 +57,7 @@ func init() {
 	if v != nil && *v {
 		info, ok := debug.ReadBuildInfo()
 		if ok && version != "" {
-			fmt.Printf("netbench %s (%s) built on %s with %s for %s/%s\n\n", version, commit, date, info.GoVersion, runtime.GOOS, runtime.GOARCH)
+			fmt.Printf("netbench %s (%s) built on %s with %s for %s/%s\n\n", version, commit[:7], date, info.GoVersion, runtime.GOOS, runtime.GOARCH)
 			fmt.Printf("Using:\n")
 			for _, dep := range info.Deps {
 				fmt.Printf("  %s %s\n", dep.Path, dep.Version)

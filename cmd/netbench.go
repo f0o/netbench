@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"runtime/debug"
 	"time"
 
 	"go.f0o.dev/netbench/interfaces"
@@ -19,6 +20,8 @@ import (
 var flags interfaces.Flags
 
 func init() {
+	version := flag.Bool("version", false, "Print version and exit")
+
 	flag.DurationVar(&flags.Duration, "duration", 15*time.Minute, "Duration of benchmark")
 	flag.StringVar(&flags.Format, "format", "text", "Output format (text|json)")
 
@@ -48,6 +51,19 @@ func init() {
 	flag.IntVar(&flags.ScalerOpts.Max, "scaler-max", runtime.NumCPU()*5, "Maximum number of workers (does not apply to static scaler)")
 
 	flag.Parse()
+	if version != nil && *version {
+		info, ok := debug.ReadBuildInfo()
+		if ok {
+			fmt.Printf("netbench %s built with %s for %s/%s\n\n", info.Main.Version, info.GoVersion, runtime.GOOS, runtime.GOARCH)
+			fmt.Printf("Using:\n")
+			for _, dep := range info.Deps {
+				fmt.Printf("  %s %s\n", dep.Path, dep.Version)
+			}
+		} else {
+			fmt.Printf("netbench %s built for %s/%s\n", "unknown", runtime.GOOS, runtime.GOARCH)
+		}
+		os.Exit(0)
+	}
 	if flags.WorkerOpts.URL == "" {
 		logger.Fatalw("Missing Target parameter, Check --help", "Flags", flags)
 	}

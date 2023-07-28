@@ -1,14 +1,15 @@
 FROM golang:alpine AS builder
 
-ARG VERSION
-ARG COMMIT
-ARG BUILD_DATE
+ARG VERSION="devel"
+ARG COMMIT="0000000"
+ARG BUILD_DATE="1970-01-01T00:00:00Z"
 
 WORKDIR /opt/netbench
 
 ADD . /opt/netbench
 
-RUN go build -o netbench -ldflags "-s -w -X main.version='${VERSION}' -X main.commit='${COMMIT}' -X main.date='${BUILD_DATE}'" cmd/.
+RUN cd cmd \
+&& go build -o ../netbench -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${BUILD_DATE}" .
 
 FROM alpine AS final
 

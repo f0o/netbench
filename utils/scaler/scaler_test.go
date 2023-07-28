@@ -10,24 +10,28 @@ import (
 	"go.f0o.dev/netbench/interfaces"
 )
 
-func TestScaler(t *testing.T) {
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-	factor := rng.Float64()
-	testCases := []struct {
-		Type   string
+var (
+	rng       = rand.New(rand.NewSource(time.Now().UnixNano()))
+	factor    = rng.Float64()
+	testCases = []struct {
+		Type   interfaces.ScalerType
 		Factor float64
 		Fn     func(float64) float64
 	}{
-		{Type: "static", Factor: factor, Fn: func(i float64) float64 { return factor }},
-		{Type: "linear", Factor: factor, Fn: func(i float64) float64 { return i * factor }},
-		{Type: "exponential", Factor: factor, Fn: func(i float64) float64 { return math.Exp(i) * factor }},
-		{Type: "curve", Factor: factor, Fn: func(i float64) float64 { return math.Pow(i, factor) }},
-		{Type: "sine", Factor: factor, Fn: func(i float64) float64 { return math.Sin(i / factor) }},
-		{Type: "logarithmic", Factor: factor, Fn: func(i float64) float64 { return math.Log(i) * factor }},
+		{Type: interfaces.StaticScaler, Factor: factor, Fn: func(i float64) float64 { return factor }},
+		{Type: interfaces.LinearScaler, Factor: factor, Fn: func(i float64) float64 { return i * factor }},
+		{Type: interfaces.ExponentialScaler, Factor: factor, Fn: func(i float64) float64 { return math.Exp(i) * factor }},
+		{Type: interfaces.CurveScaler, Factor: factor, Fn: func(i float64) float64 { return math.Pow(i, factor) }},
+		{Type: interfaces.SineScaler, Factor: factor, Fn: func(i float64) float64 { return math.Sin(i / factor) }},
+		{Type: interfaces.LogarithmicScaler, Factor: factor, Fn: func(i float64) float64 { return math.Log(i) * factor }},
 	}
+)
+
+func TestScaler(t *testing.T) {
 	for _, c := range testCases {
-		t.Run(c.Type, func(t *testing.T) {
+		t.Run(c.Type.String(), func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			s := scaler{
 				ctx:        ctx,
 				scaler:     c.Type,
@@ -38,17 +42,38 @@ func TestScaler(t *testing.T) {
 				factor:     c.Factor,
 				workeropts: &interfaces.WorkerOpts{},
 			}
-			fn := s.setScalerFunc()
-			for i := 0.0; i < 1048576; i++ {
-				s.increment++
-				r := fn()
-				v := c.Fn(s.increment)
-				if r != v {
-					t.Logf("Expected %+v, Got %+v", v, r)
-					t.FailNow()
-				}
+			fn := s.getScalerFunc()
+			s.increment = rand.Float64() * 1024
+			r := fn()
+			v := c.Fn(s.increment)
+			if r != v {
+				t.Logf("Expected %+v, Got %+v", v, r)
+				t.FailNow()
 			}
+		})
+	}
+}
+
+func BenchmarkScaler(b *testing.B) {
+	for _, c := range testCases {
+		b.Run(c.Type.String(), func(b *testing.B) {
+			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
+			s := scaler{
+				ctx:        ctx,
+				scaler:     c.Type,
+				increment:  0,
+				interval:   0,
+				min:        1,
+				max:        1,
+				factor:     c.Factor,
+				workeropts: &interfaces.WorkerOpts{},
+			}
+			fn := s.getScalerFunc()
+			for i := 0; i < b.N; i++ {
+				s.increment++
+				fn()
+			}
 		})
 	}
 }

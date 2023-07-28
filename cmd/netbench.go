@@ -31,27 +31,29 @@ func init() {
 	flag.BoolVar(&flags.PrometheusOpts.Enabled, "prometheus-enable", false, "Enable Prometheus metrics server")
 	flag.StringVar(&flags.PrometheusOpts.Bind, "prometheus-bind", ":8080", "Address to bind Prometheus metrics server")
 
-	flags.WorkerOpts.Headers = make(map[string]string)
-	flag.StringVar(&flags.WorkerOpts.URL, "http-url", "", "Target URL to benchmark")
-	flag.StringVar(&flags.WorkerOpts.Method, "http-method", "GET", "HTTP Method to use")
-	flag.Var(&flags.WorkerOpts.Headers, "http-header", "HTTP Headers to use")
-	flag.BoolVar(&flags.WorkerOpts.Follow, "http-follow", false, "Follow redirects")
+	flags.WorkerOpts.HTTPOpts.Headers = make(map[string]string)
+	flag.StringVar(&flags.WorkerOpts.HTTPOpts.URL, "http-url", "", "Target URL to benchmark")
+	flag.StringVar(&flags.WorkerOpts.HTTPOpts.Method, "http-method", "GET", "HTTP Method to use")
+	flag.Var(&flags.WorkerOpts.HTTPOpts.Headers, "http-header", "HTTP Headers to use")
+	flag.BoolVar(&flags.WorkerOpts.HTTPOpts.Follow, "http-follow", false, "Follow redirects")
 
-	flag.StringVar(&flags.ScalerOpts.Type, "scaler-type", "curve", `Scaler to use:
+	flag.Var(&flags.ScalerOpts.Type, "scaler-type", `Scaler to use:
 - 'curve': adds workers in a power curve (x^y where x is the increment and y is the factor)
 - 'exp[onential]': adds workers in a base-e exponential curve (e^x where x is the increment)
 - 'linear': adds workers in a linear fashion
 - 'log[arithmic]': adds workers in a natural logarithmic curve
 - 'sin[e]': adds and removes workers in a sine wave
-- 'static': static number of workers`)
+- 'static': static number of workers
+ (default curve)`)
 	flag.DurationVar(&flags.ScalerOpts.Period, "scaler-period", time.Minute, "Time to wait between scaler adjustments")
 	flag.Float64Var(&flags.ScalerOpts.Factor, "scaler-factor", 1.5, `Scaling factor for scalers:
 - 'static' scaler uses this as the number of workers
 - 'curve' scaler uses this as the exponent
 - 'sine' scaler uses this as the frequency
-- all other scalers use this as the multiplier`)
+- all other scalers use this as the multiplier
+`)
 	flag.IntVar(&flags.ScalerOpts.Min, "scaler-min", 0, "Minimum number of workers (does not apply to static scaler)")
-	flag.IntVar(&flags.ScalerOpts.Max, "scaler-max", runtime.NumCPU()*5, "Maximum number of workers (does not apply to static scaler)")
+	flag.IntVar(&flags.ScalerOpts.Max, "scaler-max", runtime.NumCPU()*2, "Maximum number of workers (does not apply to static scaler)")
 
 	flag.Parse()
 	if v != nil && *v {

@@ -20,7 +20,7 @@ type scaler struct {
 	interval   time.Duration
 	increment  float64
 	workers    []context.CancelFunc
-	scaler     string
+	scaler     interfaces.ScalerType
 	min, max   float64
 	factor     float64
 	workeropts *interfaces.WorkerOpts
@@ -30,7 +30,7 @@ type scaler struct {
 // It will invoke the scaler function every interval to scale the workers
 // It will stop when the context is canceled
 func (this *scaler) Start() error {
-	fn := this.setScalerFunc()
+	fn := this.getScalerFunc()
 	d := time.NewTicker(this.interval)
 	defer d.Stop()
 	this.scale(fn)
@@ -83,29 +83,29 @@ func (this *scaler) despawn() {
 }
 
 // setScalerFunc returns the scaler function
-func (this *scaler) setScalerFunc() func() float64 {
+func (this *scaler) getScalerFunc() func() float64 {
 	switch this.scaler {
-	case "curve":
+	case interfaces.CurveScaler:
 		return func() float64 {
 			return math.Pow(this.increment, this.factor)
 		}
-	case "exponential", "exp":
+	case interfaces.ExponentialScaler:
 		return func() float64 {
 			return math.Exp(this.increment) * this.factor
 		}
-	case "linear":
+	case interfaces.LinearScaler:
 		return func() float64 {
 			return this.increment * this.factor
 		}
-	case "logarithmic", "log":
+	case interfaces.LogarithmicScaler:
 		return func() float64 {
 			return math.Log(this.increment) * this.factor
 		}
-	case "static":
+	case interfaces.StaticScaler:
 		return func() float64 {
 			return this.factor
 		}
-	case "sine", "sin":
+	case interfaces.SineScaler:
 		return func() float64 {
 			return math.Sin(this.increment/this.factor) * this.max
 		}
@@ -118,7 +118,7 @@ func (this *scaler) setScalerFunc() func() float64 {
 func NewScaler(ctx context.Context, scaler_opts *interfaces.ScalerOpts, worker_opts *interfaces.WorkerOpts) interfaces.Scaler {
 	min := float64(scaler_opts.Min)
 	max := float64(scaler_opts.Max)
-	if scaler_opts.Type == "static" {
+	if scaler_opts.Type == interfaces.StaticScaler {
 		min = scaler_opts.Factor
 		max = scaler_opts.Factor
 	}

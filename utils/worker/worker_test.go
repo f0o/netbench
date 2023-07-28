@@ -10,10 +10,11 @@ import (
 	"go.f0o.dev/netbench/utils/prometheus"
 )
 
-func TestWorker(t *testing.T) {
+func TestHTTPWorker(t *testing.T) {
 	for k, method := range []string{"GET", "POST", "PUT", "PATCH", "DELETE"} {
 		t.Run(method, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				cancel()
 				w.WriteHeader(200)
@@ -24,12 +25,14 @@ func TestWorker(t *testing.T) {
 				}
 			}))
 			defer ts.Close()
-			defer cancel()
 			worker := NewWorker(ctx, &interfaces.WorkerOpts{
-				URL:     ts.URL,
-				Method:  method,
-				Headers: map[string]string{},
-				Follow:  false,
+				Type: interfaces.HTTPWorker,
+				HTTPOpts: interfaces.HTTPOpts{
+					URL:     ts.URL,
+					Method:  method,
+					Headers: map[string]string{},
+					Follow:  false,
+				},
 			})
 			worker.Do()
 			metrics := prometheus.Metrics.Get()

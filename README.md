@@ -1,5 +1,5 @@
 # netbench
-[![Go](https://github.com/f0o/netbench/actions/workflows/go.yml/badge.svg?branch=main)](https://github.com/f0o/netbench/actions/workflows/go.yml) [![Release](https://github.com/f0o/netbench/actions/workflows/release.yaml/badge.svg)](https://github.com/f0o/netbench/actions/workflows/release.yaml)
+[![Go](https://github.com/f0o/netbench/actions/workflows/go.yml/badge.svg?branch=main)](https://github.com/f0o/netbench/actions/workflows/go.yml) [![Release](https://github.com/f0o/netbench/actions/workflows/release.yaml/badge.svg)](https://github.com/f0o/netbench/actions/workflows/release.yaml) [![Release Docker](https://github.com/f0o/netbench/actions/workflows/docker.yaml/badge.svg)](https://github.com/f0o/netbench/actions/workflows/docker.yaml)
 
 Yes another network benchmarking tool. This one is written in Go to scratch an itch.
 

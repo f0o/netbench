@@ -5,7 +5,7 @@ go 1.19
 require github.com/prometheus/client_golang v1.16.0
 
 require (
-	github.com/prometheus/client_model v0.3.0
+	github.com/prometheus/client_model v0.4.0
 	go.uber.org/zap v1.24.0
 )
 

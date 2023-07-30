@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -23,7 +24,7 @@ type httpWorker struct {
 	URL     string
 	Method  string
 	Headers map[string]string
-	Payload string
+	Payload []byte
 	blen    int
 }
 
@@ -33,7 +34,7 @@ func init() {
 }
 
 func (this *httpWorker) Do() error {
-	req, _ := http.NewRequestWithContext(this.ctx, this.Method, this.URL, nil)
+	req, _ := http.NewRequestWithContext(this.ctx, this.Method, this.URL, bytes.NewReader(this.Payload))
 	for k, v := range this.Headers {
 		req.Header.Add(k, v)
 	}
@@ -71,7 +72,7 @@ func (this *httpWorker) Do() error {
 	return nil
 }
 
-func NewHTTPWorker(ctx context.Context, opts *interfaces.HTTPOpts, payload string) interfaces.Worker {
+func NewHTTPWorker(ctx context.Context, opts *interfaces.HTTPOpts, payload []byte) interfaces.Worker {
 	client := http.DefaultClient
 	if !opts.Follow {
 		client = &http.Client{

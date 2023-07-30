@@ -3,6 +3,7 @@ package worker
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"strings"
 
@@ -78,8 +79,17 @@ func AvailableWorkers() []string {
 // it uses the context to get the target, method, headers and follow flags
 // it returns a worker interface
 func NewWorker(ctx context.Context, worker_opts *interfaces.WorkerOpts) interfaces.Worker {
+	var payload []byte
+	var err error
+	if worker_opts.Payload != "" {
+		payload, err = base64.StdEncoding.DecodeString(worker_opts.Payload)
+		if err != nil {
+			logger.Fatalw("failed to decode payload", "Error", err)
+			return nil
+		}
+	}
 	t := new(WorkerType)
-	err := t.Set(worker_opts.Target)
+	err = t.Set(worker_opts.Target)
 	if err != nil {
 		logger.Fatalw("invalid target or unsupported scheme", "Error", err)
 		return nil
@@ -88,12 +98,12 @@ func NewWorker(ctx context.Context, worker_opts *interfaces.WorkerOpts) interfac
 	switch *t {
 	case HTTPWorker:
 		worker_opts.HTTPOpts.URL = worker_opts.Target
-		_worker = NewHTTPWorker(ctx, &worker_opts.HTTPOpts, worker_opts.Payload)
+		_worker = NewHTTPWorker(ctx, &worker_opts.HTTPOpts, payload)
 	case NetWorker:
 		target := strings.SplitN(worker_opts.Target, "://", 2)
 		worker_opts.NetOpts.Type = target[0]
 		worker_opts.NetOpts.Addr = target[1]
-		_worker = NewNetWorker(ctx, &worker_opts.NetOpts, worker_opts.Payload)
+		_worker = NewNetWorker(ctx, &worker_opts.NetOpts, payload)
 	default:
 		logger.Fatalw("worker type reserved but not yet implemented", "Type", t.String())
 		return nil

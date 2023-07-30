@@ -22,7 +22,7 @@ type netWorker struct {
 	Type    string
 	Addr    string
 	Timeout time.Duration
-	Payload string
+	Payload []byte
 	blen    int
 }
 
@@ -75,8 +75,8 @@ func (this *netWorker) Dial() (int, error) {
 		return -1, err
 	}
 	conn.SetDeadline(time.Now().Add(this.Timeout))
-	if this.Payload != "" {
-		_, err = conn.Write([]byte(this.Payload))
+	if this.Payload != nil {
+		_, err = conn.Write(this.Payload)
 		if err != nil {
 			logger.Debugw("failed to write to socket", "Error", err)
 			return -1, err
@@ -107,7 +107,7 @@ func (this *netWorker) Read(conn net.Conn) (int, error) {
 	}
 }
 
-func NewNetWorker(ctx context.Context, opts *interfaces.NetOpts, payload string) interfaces.Worker {
+func NewNetWorker(ctx context.Context, opts *interfaces.NetOpts, payload []byte) interfaces.Worker {
 	return &netWorker{
 		ctx:     ctx,
 		Type:    opts.Type,

@@ -39,6 +39,8 @@ Supported Schemes: %+v`, worker.AvailableWorkers()))
 	flag.Var(&flags.WorkerOpts.HTTPOpts.Headers, "http-header", "HTTP Headers to use (Header:Value)")
 	flag.BoolVar(&flags.WorkerOpts.HTTPOpts.Follow, "http-follow", false, "Follow redirects")
 
+	flag.DurationVar(&flags.WorkerOpts.NetOpts.Timeout, "net-timeout", 200*time.Millisecond, "Timeout for socket operations")
+
 	flag.Var(&flags.ScalerOpts.Type, "scaler", `Scaler to use:
 - 'curve' : adds workers in a power curve (x^y where x is the increment and y is the factor)
 - 'exp'   : adds workers in a base-e exponential curve (e^x where x is the increment)

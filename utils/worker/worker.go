@@ -55,7 +55,7 @@ func (this *worker) Do() error {
 	for {
 		select {
 		case <-this.ctx.Done():
-			defer logger.Debug("context done, quitting")
+			logger.Debug("context done, quitting")
 			return this.ctx.Err()
 		default:
 			this.worker.Do()
@@ -81,7 +81,7 @@ func NewWorker(ctx context.Context, worker_opts *interfaces.WorkerOpts) interfac
 	t := new(WorkerType)
 	err := t.Set(worker_opts.Target)
 	if err != nil {
-		defer logger.Fatalw("invalid target or unsupported scheme", "Error", err)
+		logger.Fatalw("invalid target or unsupported scheme", "Error", err)
 		return nil
 	}
 	var _worker interfaces.Worker
@@ -95,7 +95,7 @@ func NewWorker(ctx context.Context, worker_opts *interfaces.WorkerOpts) interfac
 		worker_opts.NetOpts.Addr = target[1]
 		_worker = NewNetWorker(ctx, &worker_opts.NetOpts, worker_opts.Payload)
 	default:
-		defer logger.Fatalw("worker type reserved but not yet implemented", "Type", t.String())
+		logger.Fatalw("worker type reserved but not yet implemented", "Type", t.String())
 		return nil
 	}
 	return &worker{

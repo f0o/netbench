@@ -21,6 +21,7 @@ type netWorker struct {
 	ctx     context.Context
 	Type    string
 	Addr    string
+	Timeout time.Duration
 	Payload string
 	blen    int
 }
@@ -32,24 +33,23 @@ func init() {
 }
 
 func (this *netWorker) Do() error {
-	// connect to tcp service
+	prometheus.Metrics.RequestsTotal.Inc()
 	start := time.Now()
 	blen, err := this.Dial()
 	stop := time.Since(start)
-	prometheus.Metrics.RequestsTotal.Inc()
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			defer logger.Debug("context canceled or deadline exceeded")
+			logger.Debug("context canceled or deadline exceeded")
 			prometheus.Metrics.RequestsAborted.Inc()
 			return this.ctx.Err()
 		}
-		defer logger.Debugw("failed to connect to tcp service", "Error", err)
+		logger.Debugw("failed to connect to socket", "Error", err)
 		prometheus.Metrics.RequestsFailed.Inc()
 		prometheus.Metrics.RequestsError.Inc()
 		return err
 	}
 	if err != nil {
-		defer logger.Debugw("failed to read from tcp service", "Error", err)
+		logger.Debugw("failed to read from socket", "Error", err)
 		prometheus.Metrics.RequestsFailed.Inc()
 		prometheus.Metrics.RequestsError.Inc()
 		return err
@@ -74,10 +74,11 @@ func (this *netWorker) Dial() (int, error) {
 	if err != nil {
 		return -1, err
 	}
+	conn.SetDeadline(time.Now().Add(this.Timeout))
 	if this.Payload != "" {
 		_, err = conn.Write([]byte(this.Payload))
 		if err != nil {
-			defer logger.Debugw("failed to write to tcp service", "Error", err)
+			logger.Debugw("failed to write to socket", "Error", err)
 			return -1, err
 		}
 	}
@@ -87,25 +88,20 @@ func (this *netWorker) Dial() (int, error) {
 
 func (this *netWorker) Read(conn net.Conn) (int, error) {
 	br := bufio.NewReader(conn)
-	N := 0
 	for {
 		select {
 		case <-this.ctx.Done():
-			defer logger.Debug("context done, quitting")
-			return 0, this.ctx.Err()
+			logger.Debug("context done, quitting")
+			return -1, this.ctx.Err()
 		default:
 			_, err := br.Peek(1)
 			if err == io.EOF {
-				return N, nil
+				return -1, nil
 			} else if err != nil {
 				return -1, err
 			} else {
-				p := br.Buffered()
-				buf := make([]byte, p)
-				n, _ := br.Read(buf)
-				N += n
-				defer logger.Debugw("read from tcp service", "Bytes", n, "Total", N)
-				return N, nil
+				n, _ := br.Read(make([]byte, br.Buffered()))
+				return n, nil
 			}
 		}
 	}
@@ -116,6 +112,7 @@ func NewNetWorker(ctx context.Context, opts *interfaces.NetOpts, payload string)
 		ctx:     ctx,
 		Type:    opts.Type,
 		Addr:    opts.Addr,
+		Timeout: opts.Timeout,
 		Payload: payload,
 	}
 }

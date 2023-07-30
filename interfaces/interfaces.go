@@ -32,8 +32,9 @@ type WorkerOpts struct {
 }
 
 type NetOpts struct {
-	Addr string
-	Type string
+	Addr    string
+	Type    string
+	Timeout time.Duration
 }
 
 type HTTPOpts struct {

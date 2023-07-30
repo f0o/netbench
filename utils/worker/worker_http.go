@@ -37,17 +37,17 @@ func (this *httpWorker) Do() error {
 	for k, v := range this.Headers {
 		req.Header.Add(k, v)
 	}
+	prometheus.Metrics.RequestsTotal.Inc()
 	start := time.Now()
 	resp, err := this.Client.Do(req)
 	stop := time.Since(start)
-	prometheus.Metrics.RequestsTotal.Inc()
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			defer logger.Debug("context canceled or deadline exceeded")
+			logger.Debug("context canceled or deadline exceeded")
 			prometheus.Metrics.RequestsAborted.Inc()
 			return this.ctx.Err()
 		}
-		defer logger.Debugw("net/http error: %+v", err)
+		logger.Debugw("net/http error: %+v", err)
 		prometheus.Metrics.RequestsFailed.Inc()
 		prometheus.Metrics.RequestsError.Inc()
 		return err

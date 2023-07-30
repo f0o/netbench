@@ -52,7 +52,8 @@ func (this *scaler) Start() error {
 func (this *scaler) scale(fn func() float64) {
 	this.increment++
 	old := len(this.workers)
-	target := math.Min(math.Max(math.Round(math.Abs(fn())), this.min), this.max)
+	target := math.Round(math.Min(math.Max(math.Abs(fn()), this.min), this.max))
+	logger.Debugw("scaling", "target", target, "old", old)
 	for w := float64(len(this.workers)); w < target; w++ {
 		this.spawn()
 	}
@@ -61,7 +62,7 @@ func (this *scaler) scale(fn func() float64) {
 	}
 	if old != len(this.workers) {
 		prometheus.Metrics.Workers.Set(float64(len(this.workers)))
-		defer logger.Info("Scaled to %d workers", len(this.workers))
+		logger.Info("Scaled to %d workers", len(this.workers))
 	}
 }
 
@@ -110,7 +111,7 @@ func (this *scaler) getScalerFunc() func() float64 {
 			return math.Sin(this.increment/this.factor) * this.max
 		}
 	}
-	defer logger.Fatalw("invalid scaler type", "scaler", this.scaler)
+	logger.Fatalw("invalid scaler type", "scaler", this.scaler)
 	return nil
 }
 

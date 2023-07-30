@@ -31,7 +31,7 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         goos: ${{ matrix.goos }}
         goarch: ${{ matrix.goarch }}
-        project_path: "./cmd"
+        project_path: "./cmd/netbench"
         binary_name: "netbench"
         extra_files: LICENSE
         ldflags: "-s -w -X main.version=${{ github.event.release.tag_name }} -X main.commit=${{ github.sha }} -X main.date=${{ github.event.release.created_at }}"

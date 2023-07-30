@@ -2,7 +2,6 @@ package interfaces
 
 import (
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 )
@@ -26,12 +25,18 @@ type ScalerOpts struct {
 
 type WorkerOpts struct {
 	HTTPOpts
+	NetOpts
 
-	Type WorkerType
+	Payload string
+	Target  string
+}
+
+type NetOpts struct {
+	Addr string
+	Type string
 }
 
 type HTTPOpts struct {
-	Client  *http.Client
 	URL     string
 	Method  string
 	Headers HTTPHeaders
@@ -116,50 +121,6 @@ func (this *ScalerType) Set(value string) error {
 		*this = StaticScaler
 	default:
 		return fmt.Errorf("invalid scaler type: %s", value)
-	}
-
-	return nil
-}
-
-type WorkerType int
-
-const (
-	HTTPWorker WorkerType = iota
-	WSWorker
-	GRPCWorker
-	TCPWorker
-	UDPWorker
-)
-
-func (this *WorkerType) String() string {
-	switch *this {
-	case HTTPWorker:
-		return "http"
-	case WSWorker:
-		return "ws"
-	case GRPCWorker:
-		return "grpc"
-	case TCPWorker:
-		return "tcp"
-	case UDPWorker:
-		return "udp"
-	}
-	return "unknown"
-}
-func (this *WorkerType) Set(value string) error {
-	switch value {
-	case "http":
-		*this = HTTPWorker
-	case "ws":
-		*this = WSWorker
-	case "grpc":
-		*this = GRPCWorker
-	case "tcp":
-		*this = TCPWorker
-	case "udp":
-		*this = UDPWorker
-	default:
-		return fmt.Errorf("invalid worker type: %s", value)
 	}
 
 	return nil

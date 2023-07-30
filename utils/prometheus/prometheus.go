@@ -23,6 +23,7 @@ type metrics struct {
 	RequestsAborted prometheus.Counter
 	ResponseTimes   prometheus.Summary
 	ResponseCodes   map[int]prometheus.Counter
+	ResponseBytes   prometheus.Gauge
 	Workers         prometheus.Gauge
 	Start           time.Time
 }
@@ -35,6 +36,7 @@ type MetricValues struct {
 	RequestsAborted float64            `json:"requests_aborted"`
 	ResponseTimes   map[string]float64 `json:"response_times"`
 	ResponseCodes   map[string]float64 `json:"response_codes"`
+	ResponseBytes   float64            `json:"response_bytes"`
 	Workers         float64            `json:"workers"`
 	Duration        time.Duration      `json:"duration"`
 	RequestsPerSec  float64            `json:"requests_per_sec"`
@@ -53,6 +55,7 @@ func (this *metrics) Get() MetricValues {
 		RequestsAborted: *getCounterValue(this.RequestsAborted),
 		ResponseTimes:   getSummaryValue(this.ResponseTimes),
 		ResponseCodes:   this.GetCodes(),
+		ResponseBytes:   *getGaugeValue(this.ResponseBytes),
 		Workers:         *getGaugeValue(this.Workers),
 		Duration:        d,
 	}
@@ -159,6 +162,10 @@ func init() {
 			Objectives: map[float64]float64{0: 1, 0.25: 0.075, 0.5: 0.05, 0.75: 0.025, 0.9: 0.01, 0.99: 0.001, 1: 0},
 		}),
 		ResponseCodes: make(map[int]prometheus.Counter),
+		ResponseBytes: promauto.NewGauge(prometheus.GaugeOpts{
+			Name: "netbench_response_bytes",
+			Help: "response_bytes",
+		}),
 		Workers: promauto.NewGauge(prometheus.GaugeOpts{
 			Name: "netbench_workers",
 			Help: "workers",

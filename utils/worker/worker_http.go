@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"go.f0o.dev/netbench/interfaces"
 	"go.f0o.dev/netbench/utils/logger"
 	"go.f0o.dev/netbench/utils/prometheus"
 )
@@ -16,22 +17,37 @@ var (
 	HTTPErrStatus     = errors.New("status code mismatch")
 )
 
-func (this *worker) DoHTTP() error {
-	req, _ := http.NewRequestWithContext(this.ctx, this.httopts.Method, this.httopts.URL, nil)
-	for k, v := range this.httopts.Headers {
+type httpWorker struct {
+	ctx     context.Context
+	Client  *http.Client
+	URL     string
+	Method  string
+	Headers map[string]string
+	Payload string
+	blen    int
+}
+
+func init() {
+	workers["http"] = HTTPWorker
+	workers["https"] = HTTPWorker
+}
+
+func (this *httpWorker) Do() error {
+	req, _ := http.NewRequestWithContext(this.ctx, this.Method, this.URL, nil)
+	for k, v := range this.Headers {
 		req.Header.Add(k, v)
 	}
 	start := time.Now()
-	resp, err := this.httopts.Client.Do(req)
+	resp, err := this.Client.Do(req)
 	stop := time.Since(start)
 	prometheus.Metrics.RequestsTotal.Inc()
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			logger.Debug("context canceled or deadline exceeded")
+			defer logger.Debug("context canceled or deadline exceeded")
 			prometheus.Metrics.RequestsAborted.Inc()
 			return this.ctx.Err()
 		}
-		logger.Debug("net/http error: %+v", err)
+		defer logger.Debugw("net/http error: %+v", err)
 		prometheus.Metrics.RequestsFailed.Inc()
 		prometheus.Metrics.RequestsError.Inc()
 		return err
@@ -42,9 +58,10 @@ func (this *worker) DoHTTP() error {
 		return HTTPErrStatus
 	}
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	defer resp.Body.Close()
 	if this.blen == 0 {
 		this.blen = int(0.9 * float64(len(body))) // 90% of the body length
+		prometheus.Metrics.ResponseBytes.Set(float64(len(body)))
 	} else if this.blen > len(body) {
 		prometheus.Metrics.RequestsFailed.Inc()
 		prometheus.Metrics.RequestsBlength.Inc()
@@ -52,4 +69,23 @@ func (this *worker) DoHTTP() error {
 	}
 	prometheus.Metrics.ResponseTimes.Observe(float64(stop))
 	return nil
+}
+
+func NewHTTPWorker(ctx context.Context, opts *interfaces.HTTPOpts, payload string) interfaces.Worker {
+	client := http.DefaultClient
+	if !opts.Follow {
+		client = &http.Client{
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		}
+	}
+	return &httpWorker{
+		ctx:     ctx,
+		Client:  client,
+		URL:     opts.URL,
+		Method:  opts.Method,
+		Headers: opts.Headers,
+		Payload: payload,
+	}
 }

@@ -61,7 +61,7 @@ func (this *scaler) scale(fn func() float64) {
 	}
 	if old != len(this.workers) {
 		prometheus.Metrics.Workers.Set(float64(len(this.workers)))
-		logger.Info("Scaled to %d workers", len(this.workers))
+		defer logger.Info("Scaled to %d workers", len(this.workers))
 	}
 }
 
@@ -110,7 +110,7 @@ func (this *scaler) getScalerFunc() func() float64 {
 			return math.Sin(this.increment/this.factor) * this.max
 		}
 	}
-	logger.Fatalw("invalid scaler type", "scaler", this.scaler)
+	defer logger.Fatalw("invalid scaler type", "scaler", this.scaler)
 	return nil
 }
 

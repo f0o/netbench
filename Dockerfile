@@ -8,8 +8,9 @@ WORKDIR /opt/netbench
 
 ADD . /opt/netbench
 
-RUN cd cmd \
-&& go build -o ../netbench -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${BUILD_DATE}" .
+RUN cd cmd/netbench \
+&& go build -o ../../netbench -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${BUILD_DATE}" .
+&& strip ../../netbench
 
 FROM alpine AS final
 

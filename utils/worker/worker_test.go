@@ -25,15 +25,12 @@ func TestHTTPWorker(t *testing.T) {
 				}
 			}))
 			defer ts.Close()
-			worker := NewWorker(ctx, &interfaces.WorkerOpts{
-				Type: interfaces.HTTPWorker,
-				HTTPOpts: interfaces.HTTPOpts{
-					URL:     ts.URL,
-					Method:  method,
-					Headers: map[string]string{},
-					Follow:  false,
-				},
-			})
+			worker := NewHTTPWorker(ctx, &interfaces.HTTPOpts{
+				URL:     ts.URL,
+				Method:  method,
+				Headers: map[string]string{},
+				Follow:  false,
+			}, "")
 			worker.Do()
 			metrics := prometheus.Metrics.Get()
 			k++

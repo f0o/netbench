@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"go.f0o.dev/netbench/interfaces"
-	"go.f0o.dev/netbench/utils/logger"
 	"go.f0o.dev/netbench/utils/prometheus"
 	"go.f0o.dev/netbench/utils/worker"
 )
@@ -72,7 +71,9 @@ Supported Schemes: %+v`, worker.AvailableWorkers()))
 		os.Exit(0)
 	}
 	if flags.WorkerOpts.Target == "" {
-		logger.Fatalw("Missing Target parameter, Check --help", "Flags", flags)
+		fmt.Println("Target parameter is required\r\n")
+		flag.Usage()
+		os.Exit(1)
 	}
 	if flags.PrometheusOpts.Enabled {
 		go prometheus.Start(flags.PrometheusOpts.Bind)

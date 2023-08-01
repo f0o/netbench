@@ -71,7 +71,7 @@ Supported Schemes: %+v`, worker.AvailableWorkers()))
 		os.Exit(0)
 	}
 	if flags.WorkerOpts.Target == "" {
-		fmt.Println("Target parameter is required\r\n")
+		fmt.Printf("Target parameter is required\r\n\r\n")
 		flag.Usage()
 		os.Exit(1)
 	}

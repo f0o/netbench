@@ -4,75 +4,48 @@ package worker
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
 	"strings"
 
 	"go.f0o.dev/netbench/interfaces"
 	"go.f0o.dev/netbench/utils/logger"
+	"go.f0o.dev/netbench/utils/prometheus"
 )
-
-type WorkerType int
-
-const (
-	InvalidWorker WorkerType = iota
-	HTTPWorker
-	WSWorker
-	GRPCWorker
-	NetWorker
-)
-
-func (this *WorkerType) String() string {
-	for k, v := range workers {
-		if v == *this {
-			return k
-		}
-	}
-	return "unknown"
-}
-
-func (this *WorkerType) Set(value string) error {
-	scheme := strings.SplitN(value, "://", 2)
-	if len(scheme) != 2 || scheme[1] == "" {
-		return fmt.Errorf("invalid worker target: %s", value)
-	}
-	for k, v := range workers {
-		if k == scheme[0] {
-			*this = v
-			return nil
-		}
-	}
-	return fmt.Errorf("invalid worker scheme: %s", scheme[0])
-}
 
 // worker is the internal worker struct representing a single worker
 type worker struct {
 	ctx    context.Context
 	worker interfaces.Worker
+	sync   bool
 }
 
 // Do performs the actual work
 // it returns an error if the context is canceled or deadline exceeded
-func (this *worker) Do() error {
+func (worker *worker) Do() error {
+	var signal int
+	if worker.sync {
+		signal = syncWorkAdd()
+	}
 	for {
 		select {
-		case <-this.ctx.Done():
+		case <-worker.ctx.Done():
 			logger.Debug("context done, quitting")
-			return this.ctx.Err()
+			if worker.sync {
+				syncWorkDel(signal)
+			}
+			return worker.ctx.Err()
 		default:
-			this.worker.Do()
+			err := worker.worker.Do()
+			prometheus.Metrics.RequestsTotal.Inc()
+			if err != nil {
+				logger.Debug("worker error: %+v", err)
+				prometheus.Metrics.RequestsFailed.Inc()
+			}
+			if worker.sync {
+				syncWorkWait(signal)
+			}
 		}
 	}
 
-}
-
-var workers = make(map[string]WorkerType)
-
-func AvailableWorkers() []string {
-	var available []string
-	for k := range workers {
-		available = append(available, k)
-	}
-	return available
 }
 
 // NewWorker returns a new worker based on the context
@@ -111,5 +84,6 @@ func NewWorker(ctx context.Context, worker_opts *interfaces.WorkerOpts) interfac
 	return &worker{
 		ctx:    ctx,
 		worker: _worker,
+		sync:   worker_opts.Sync,
 	}
 }

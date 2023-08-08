@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,15 +15,13 @@ import (
 	"go.f0o.dev/netbench/utils/prometheus"
 )
 
-var global_inc int = 0
-
 func TestHTTPWorker(t *testing.T) {
 	for k, method := range []string{"GET", "POST", "PUT", "PATCH", "DELETE"} {
 		t.Run(method, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(200)
+				w.WriteHeader(999)
 				w.Write([]byte("Hello World"))
 				if r.Method != method {
 					t.Logf("Expected %+v; Got %+v", method, r.Method)
@@ -42,14 +41,14 @@ func TestHTTPWorker(t *testing.T) {
 				Follow:  false,
 			}, []byte("Hello World"))
 			err := worker.Do()
-			if err != nil {
+			if err != nil && !errors.Is(err, ErrHTTPStatus) {
 				t.Logf("Expected %+v; Got %+v", nil, err)
 				t.FailNow()
 			}
 			metrics := prometheus.Metrics.Get()
-			global_inc++
-			if metrics.RequestsTotal != float64(global_inc) {
-				t.Logf("Expected %+v; Got %+v", k, metrics.RequestsTotal)
+			k++
+			if metrics.ResponseCodes["999"] != float64(k) {
+				t.Logf("Expected %+v; Got %+v", k, metrics.ResponseCodes["999"])
 				t.FailNow()
 			}
 		})
@@ -82,9 +81,10 @@ func TestNetWorker(t *testing.T) {
 				t.FailNow()
 			}
 			metrics := prometheus.Metrics.Get()
-			global_inc++
-			if metrics.RequestsTotal != float64(global_inc) {
-				t.Logf("Expected %+v; Got %+v", k, metrics.RequestsTotal)
+			k++
+			// NetWorker does not return a status code but will populate the 200 code on succesful session
+			if metrics.ResponseCodes["200"] != float64(k) {
+				t.Logf("Expected %+v; Got %+v", k, metrics.ResponseCodes["200"])
 				t.FailNow()
 			}
 		})

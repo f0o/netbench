@@ -29,89 +29,89 @@ type scaler struct {
 // Start starts the scaler
 // It will invoke the scaler function every interval to scale the workers
 // It will stop when the context is canceled
-func (this *scaler) Start() error {
-	fn := this.getScalerFunc()
-	d := time.NewTicker(this.interval)
+func (scaler *scaler) Start() error {
+	fn := scaler.getScalerFunc()
+	d := time.NewTicker(scaler.interval)
 	defer d.Stop()
-	this.scale(fn)
+	scaler.scale(fn)
 	for {
 		select {
-		case <-this.ctx.Done():
-			for k, w := range this.workers {
+		case <-scaler.ctx.Done():
+			for k, w := range scaler.workers {
 				logger.Debug("stopping worker %+v", k)
 				w()
 			}
-			return this.ctx.Err()
+			return scaler.ctx.Err()
 		case <-d.C:
-			this.scale(fn)
+			scaler.scale(fn)
 		}
 	}
 }
 
 // scale scales the workers
-func (this *scaler) scale(fn func() float64) {
-	this.increment++
-	old := len(this.workers)
-	target := math.Round(math.Min(math.Max(math.Abs(fn()), this.min), this.max))
+func (scaler *scaler) scale(fn func() float64) {
+	scaler.increment++
+	old := len(scaler.workers)
+	target := math.Round(math.Min(math.Max(math.Abs(fn()), scaler.min), scaler.max))
 	logger.Debugw("scaling", "target", target, "old", old)
-	for w := float64(len(this.workers)); w < target; w++ {
-		this.spawn()
+	for w := float64(len(scaler.workers)); w < target; w++ {
+		scaler.spawn()
 	}
-	for w := float64(len(this.workers)); w > target; w-- {
-		this.despawn()
+	for w := float64(len(scaler.workers)); w > target; w-- {
+		scaler.despawn()
 	}
-	if old != len(this.workers) {
-		prometheus.Metrics.Workers.Set(float64(len(this.workers)))
-		logger.Info("Scaled to %d workers", len(this.workers))
+	if old != len(scaler.workers) {
+		prometheus.Metrics.Workers.Set(float64(len(scaler.workers)))
+		logger.Info("Scaled to %d workers", len(scaler.workers))
 	}
 }
 
 // spawn spawns a worker
-func (this *scaler) spawn() {
-	wc, wf := context.WithCancel(this.ctx)
-	this.workers = append(this.workers, wf)
-	ww := worker.NewWorker(wc, this.workeropts)
+func (scaler *scaler) spawn() {
+	wc, wf := context.WithCancel(scaler.ctx)
+	scaler.workers = append(scaler.workers, wf)
+	ww := worker.NewWorker(wc, scaler.workeropts)
 	go ww.Do()
 }
 
 // despawn despawns a worker
-func (this *scaler) despawn() {
-	if len(this.workers) == 0 {
+func (scaler *scaler) despawn() {
+	if len(scaler.workers) == 0 {
 		return
 	}
-	go this.workers[0]()
-	this.workers = this.workers[1:]
+	go scaler.workers[0]()
+	scaler.workers = scaler.workers[1:]
 }
 
 // setScalerFunc returns the scaler function
-func (this *scaler) getScalerFunc() func() float64 {
-	switch this.scaler {
+func (scaler *scaler) getScalerFunc() func() float64 {
+	switch scaler.scaler {
 	case interfaces.CurveScaler:
 		return func() float64 {
-			return math.Pow(this.increment, this.factor)
+			return math.Pow(scaler.increment, scaler.factor)
 		}
 	case interfaces.ExponentialScaler:
 		return func() float64 {
-			return math.Exp(this.increment) * this.factor
+			return math.Exp(scaler.increment) * scaler.factor
 		}
 	case interfaces.LinearScaler:
 		return func() float64 {
-			return this.increment * this.factor
+			return scaler.increment * scaler.factor
 		}
 	case interfaces.LogarithmicScaler:
 		return func() float64 {
-			return math.Log(this.increment) * this.factor
+			return math.Log(scaler.increment) * scaler.factor
 		}
 	case interfaces.StaticScaler:
 		return func() float64 {
-			return this.factor
+			return scaler.factor
 		}
 	case interfaces.SineScaler:
 		return func() float64 {
-			return math.Sin(this.increment/this.factor) * this.max
+			return math.Sin(scaler.increment/scaler.factor) * scaler.max
 		}
 	}
-	logger.Fatalw("invalid scaler type", "scaler", this.scaler)
+	logger.Fatalw("invalid scaler type", "scaler", scaler.scaler)
 	return nil
 }
 

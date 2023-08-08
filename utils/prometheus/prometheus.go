@@ -44,19 +44,20 @@ type MetricValues struct {
 
 var Metrics metrics
 
-func (this *metrics) Get() MetricValues {
-	d := time.Since(this.Start)
-	time.Sleep(1 * time.Second)
+func (metrics *metrics) Get() MetricValues {
+	d := time.Since(metrics.Start)
+	logger.Debug("Flushing Metrics")
+	time.Sleep(2 * time.Second)
 	m := MetricValues{
-		RequestsTotal:   *getCounterValue(this.RequestsTotal),
-		RequestsFailed:  *getCounterValue(this.RequestsFailed),
-		RequestsError:   *getCounterValue(this.RequestsError),
-		RequestsBlength: *getCounterValue(this.RequestsBlength),
-		RequestsAborted: *getCounterValue(this.RequestsAborted),
-		ResponseTimes:   getSummaryValue(this.ResponseTimes),
-		ResponseCodes:   this.GetCodes(),
-		ResponseBytes:   *getGaugeValue(this.ResponseBytes),
-		Workers:         *getGaugeValue(this.Workers),
+		RequestsTotal:   *getCounterValue(metrics.RequestsTotal),
+		RequestsFailed:  *getCounterValue(metrics.RequestsFailed),
+		RequestsError:   *getCounterValue(metrics.RequestsError),
+		RequestsBlength: *getCounterValue(metrics.RequestsBlength),
+		RequestsAborted: *getCounterValue(metrics.RequestsAborted),
+		ResponseTimes:   getSummaryValue(metrics.ResponseTimes),
+		ResponseCodes:   metrics.GetCodes(),
+		ResponseBytes:   *getGaugeValue(metrics.ResponseBytes),
+		Workers:         *getGaugeValue(metrics.Workers),
 		Duration:        d,
 	}
 	m.RequestsPerSec = m.RequestsTotal / m.Duration.Seconds()
@@ -66,43 +67,43 @@ func (this *metrics) Get() MetricValues {
 	return m
 }
 
-func (this *MetricValues) sanityCheck() {
-	total3 := this.RequestsError + this.RequestsBlength
-	total4 := 0.0
+func (metricvalues *MetricValues) sanityCheck() {
+	total_err := metricvalues.RequestsError + metricvalues.RequestsBlength + metricvalues.RequestsAborted
+	total_2xx := 0.0
 	for i := 200; i < 300; i++ {
-		total4 += this.ResponseCodes[strconv.Itoa(i)]
+		total_2xx += metricvalues.ResponseCodes[strconv.Itoa(i)]
 	}
 
-	if this.RequestsFailed != total3 {
-		logger.Warnw("Total Failed Requests does not match", "Total Failed", this.RequestsFailed, "Total Errors", total3)
+	if metricvalues.RequestsFailed != total_err {
+		logger.Warnw("Total Failed Requests does not match", "Total Failed", metricvalues.RequestsFailed, "Total Errors", total_err)
 	}
 
-	if this.RequestsTotal != this.RequestsFailed+total4+this.RequestsAborted {
-		logger.Warnw("Total Requests does not match", "Total Requests", this.RequestsTotal, "Total Failed", total3, "Total 200", total4, "Total Aborted", this.RequestsAborted)
+	if metricvalues.RequestsTotal != metricvalues.RequestsFailed+total_2xx {
+		logger.Warnw("Total Requests does not match", "Total Requests", metricvalues.RequestsTotal, "Total Failed", total_err, "Total 2xx", total_2xx)
 	}
 }
 
-func (this *metrics) GetCodes() map[string]float64 {
+func (metrics *metrics) GetCodes() map[string]float64 {
 	r := make(map[string]float64)
-	for i, c := range this.ResponseCodes {
+	for i, c := range metrics.ResponseCodes {
 		r[strconv.Itoa(i)] = *getCounterValue(c)
 	}
 	return r
 }
 
-func (this *metrics) GetCodeCounter(code int) prometheus.Counter {
-	if this.ResponseCodes[code] == nil {
-		this.mutex.Lock()
-		defer this.mutex.Unlock()
-		if this.ResponseCodes[code] == nil {
-			this.ResponseCodes[code] = promauto.NewCounter(prometheus.CounterOpts{
+func (metrics *metrics) GetCodeCounter(code int) prometheus.Counter {
+	if metrics.ResponseCodes[code] == nil {
+		metrics.mutex.Lock()
+		defer metrics.mutex.Unlock()
+		if metrics.ResponseCodes[code] == nil {
+			metrics.ResponseCodes[code] = promauto.NewCounter(prometheus.CounterOpts{
 				Name:        "netbench_response_codes",
 				Help:        "requests_code",
 				ConstLabels: map[string]string{"code": strconv.Itoa(code)},
 			})
 		}
 	}
-	return this.ResponseCodes[code]
+	return metrics.ResponseCodes[code]
 }
 
 func getGaugeValue(g prometheus.Gauge) *float64 {

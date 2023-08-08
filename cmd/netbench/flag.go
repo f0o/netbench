@@ -19,7 +19,7 @@ var (
 )
 
 func init() {
-	runtime.GOMAXPROCS(1) // notably increases performance
+	// runtime.GOMAXPROCS(1) // notably increases performance
 
 	v := flag.Bool("version", false, "Print version and exit")
 
@@ -32,6 +32,7 @@ func init() {
 	flag.StringVar(&flags.WorkerOpts.Target, "target", "", fmt.Sprintf(`Target URI to benchmark (scheme://host[:port][/path])
 Supported Schemes: %+v`, worker.AvailableWorkers()))
 	flag.StringVar(&flags.WorkerOpts.Payload, "payload", "", "Optional base64 encoded payload to send to the target")
+	flag.BoolVar(&flags.WorkerOpts.Sync, "sync", false, "Synchronous mode (execute all requests concurrently and wait for all to complete)")
 
 	flags.WorkerOpts.HTTPOpts.Headers = make(map[string]string)
 	flag.StringVar(&flags.WorkerOpts.HTTPOpts.Method, "http-method", "GET", "HTTP Method to use")

@@ -11,10 +11,15 @@ import (
 	"go.f0o.dev/netbench/utils/logger"
 	"go.f0o.dev/netbench/utils/prometheus"
 	"go.f0o.dev/netbench/utils/scaler"
+	"go.uber.org/automaxprocs/maxprocs"
 )
 
 var ctx context.Context
 var cancel context.CancelFunc
+
+func init() {
+	maxprocs.Set(maxprocs.Logger(logger.Debug))
+}
 
 func signalHandler() {
 	c := make(chan os.Signal, 1)

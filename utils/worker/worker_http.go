@@ -13,11 +13,6 @@ import (
 	"go.f0o.dev/netbench/utils/prometheus"
 )
 
-var (
-	HTTPErrBodyLength = errors.New("body length mismatch")
-	HTTPErrStatus     = errors.New("status code mismatch")
-)
-
 type httpWorker struct {
 	ctx     context.Context
 	Client  *http.Client
@@ -33,40 +28,48 @@ func init() {
 	workers["https"] = HTTPWorker
 }
 
-func (this *httpWorker) Do() error {
-	req, _ := http.NewRequestWithContext(this.ctx, this.Method, this.URL, bytes.NewReader(this.Payload))
-	for k, v := range this.Headers {
+func (httpWorker *httpWorker) Do() error {
+	req, _ := http.NewRequestWithContext(httpWorker.ctx, httpWorker.Method, httpWorker.URL, bytes.NewReader(httpWorker.Payload))
+	// req, _ := http.NewRequest(httpWorker.Method, httpWorker.URL, bytes.NewReader(httpWorker.Payload))
+	for k, v := range httpWorker.Headers {
 		req.Header.Add(k, v)
 	}
-	prometheus.Metrics.RequestsTotal.Inc()
 	start := time.Now()
-	resp, err := this.Client.Do(req)
+	resp, err := httpWorker.Client.Do(req)
 	stop := time.Since(start)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			logger.Debug("context canceled or deadline exceeded")
 			prometheus.Metrics.RequestsAborted.Inc()
-			return this.ctx.Err()
+			return httpWorker.ctx.Err()
 		}
-		logger.Debugw("net/http error: %+v", err)
-		prometheus.Metrics.RequestsFailed.Inc()
+		logger.Debug("net/http error: %+v", err)
+
 		prometheus.Metrics.RequestsError.Inc()
 		return err
 	}
 	prometheus.Metrics.GetCodeCounter(resp.StatusCode).Inc()
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		prometheus.Metrics.RequestsFailed.Inc()
-		return HTTPErrStatus
+		return ErrHTTPStatus
 	}
-	body, _ := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
-	if this.blen == 0 {
-		this.blen = int(0.9 * float64(len(body))) // 90% of the body length
+	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			logger.Debug("context canceled or deadline exceeded")
+			prometheus.Metrics.RequestsAborted.Inc()
+			return httpWorker.ctx.Err()
+		}
+		logger.Debug("io.ReadAll error: %+v", err)
+		prometheus.Metrics.RequestsError.Inc()
+		return err
+	}
+	if httpWorker.blen == 0 {
+		httpWorker.blen = int(0.9 * float64(len(body))) // 90% of the body length
 		prometheus.Metrics.ResponseBytes.Set(float64(len(body)))
-	} else if this.blen > len(body) {
-		prometheus.Metrics.RequestsFailed.Inc()
+	} else if httpWorker.blen > len(body) {
 		prometheus.Metrics.RequestsBlength.Inc()
-		return HTTPErrBodyLength
+		return ErrDataLength
 	}
 	prometheus.Metrics.ResponseTimes.Observe(float64(stop))
 	return nil

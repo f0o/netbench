@@ -29,6 +29,7 @@ type WorkerOpts struct {
 
 	Payload string
 	Target  string
+	Sync    bool
 }
 
 type NetOpts struct {
@@ -46,11 +47,11 @@ type HTTPOpts struct {
 
 type HTTPHeaders map[string]string
 
-func (this *HTTPHeaders) String() string {
-	return fmt.Sprintf("%v", *this)
+func (httpheaders *HTTPHeaders) String() string {
+	return fmt.Sprintf("%v", *httpheaders)
 }
 
-func (this *HTTPHeaders) Set(value string) error {
+func (httpheaders *HTTPHeaders) Set(value string) error {
 	parts := strings.SplitN(value, ":", 2)
 	if len(parts) != 2 {
 		return fmt.Errorf("invalid header: %s", value)
@@ -59,7 +60,7 @@ func (this *HTTPHeaders) Set(value string) error {
 	k := strings.TrimSpace(parts[0])
 	v := strings.TrimSpace(parts[1])
 
-	(*this)[k] = v
+	(*httpheaders)[k] = v
 
 	return nil
 }
@@ -88,8 +89,8 @@ const (
 	StaticScaler
 )
 
-func (this *ScalerType) String() string {
-	switch *this {
+func (scalertype *ScalerType) String() string {
+	switch *scalertype {
 	case CurveScaler:
 		return "curve"
 	case ExponentialScaler:
@@ -106,20 +107,20 @@ func (this *ScalerType) String() string {
 	return "unknown"
 }
 
-func (this *ScalerType) Set(value string) error {
+func (scalertype *ScalerType) Set(value string) error {
 	switch value {
 	case "curve":
-		*this = CurveScaler
+		*scalertype = CurveScaler
 	case "exp", "exponential":
-		*this = ExponentialScaler
+		*scalertype = ExponentialScaler
 	case "linear":
-		*this = LinearScaler
+		*scalertype = LinearScaler
 	case "log", "logarithmic":
-		*this = LogarithmicScaler
+		*scalertype = LogarithmicScaler
 	case "sin", "sine":
-		*this = SineScaler
+		*scalertype = SineScaler
 	case "static":
-		*this = StaticScaler
+		*scalertype = StaticScaler
 	default:
 		return fmt.Errorf("invalid scaler type: %s", value)
 	}

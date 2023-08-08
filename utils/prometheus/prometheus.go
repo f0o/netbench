@@ -47,7 +47,7 @@ var Metrics metrics
 func (metrics *metrics) Get() MetricValues {
 	d := time.Since(metrics.Start)
 	logger.Debug("Flushing Metrics")
-	time.Sleep(2 * time.Second)
+	time.Sleep(150 * time.Millisecond)
 	m := MetricValues{
 		RequestsTotal:   *getCounterValue(metrics.RequestsTotal),
 		RequestsFailed:  *getCounterValue(metrics.RequestsFailed),

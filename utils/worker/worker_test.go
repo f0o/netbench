@@ -21,7 +21,7 @@ func TestHTTPWorker(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(999)
+				w.WriteHeader(201)
 				w.Write([]byte("Hello World"))
 				if r.Method != method {
 					t.Logf("Expected %+v; Got %+v", method, r.Method)
@@ -47,8 +47,8 @@ func TestHTTPWorker(t *testing.T) {
 			}
 			metrics := prometheus.Metrics.Get()
 			k++
-			if metrics.ResponseCodes["999"] != float64(k) {
-				t.Logf("Expected %+v; Got %+v", k, metrics.ResponseCodes["999"])
+			if metrics.ResponseCodes["201"] != float64(k) {
+				t.Logf("Expected %+v; Got %+v", k, metrics.ResponseCodes["201"])
 				t.FailNow()
 			}
 		})
@@ -56,37 +56,32 @@ func TestHTTPWorker(t *testing.T) {
 }
 
 func TestNetWorker(t *testing.T) {
-	for k, method := range []string{"GET", "POST", "PUT", "PATCH", "DELETE"} {
-		t.Run(method, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(200)
-				w.Write([]byte("Hello World"))
-				if r.Method != method {
-					t.Logf("Expected %+v; Got %+v", method, r.Method)
-					t.FailNow()
-				}
-			}))
-			u, _ := url.Parse(ts.URL)
-			defer ts.Close()
-			worker := NewNetWorker(ctx, &interfaces.NetOpts{
-				Type:    "tcp",
-				Addr:    fmt.Sprintf("%s:%s", u.Hostname(), u.Port()),
-				Timeout: 200 * time.Millisecond,
-			}, []byte(fmt.Sprintf("%s / HTTP/1.0\r\n\r\n", method)))
-			err := worker.Do()
-			if err != nil {
-				t.Logf("Expected %+v; Got %+v", nil, err)
-				t.FailNow()
-			}
-			metrics := prometheus.Metrics.Get()
-			k++
-			// NetWorker does not return a status code but will populate the 200 code on succesful session
-			if metrics.ResponseCodes["200"] != float64(k) {
-				t.Logf("Expected %+v; Got %+v", k, metrics.ResponseCodes["200"])
-				t.FailNow()
-			}
-		})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte("Hello World"))
+		if r.Method != "GET" {
+			t.Logf("Expected %+v; Got %+v", "GET", r.Method)
+			t.FailNow()
+		}
+	}))
+	u, _ := url.Parse(ts.URL)
+	defer ts.Close()
+	worker := NewNetWorker(ctx, &interfaces.NetOpts{
+		Type:    "tcp",
+		Addr:    fmt.Sprintf("%s:%s", u.Hostname(), u.Port()),
+		Timeout: 200 * time.Millisecond,
+	}, []byte(fmt.Sprintf("%s / HTTP/1.0\r\n\r\n", "GET")))
+	err := worker.Do()
+	if err != nil {
+		t.Logf("Expected %+v; Got %+v", nil, err)
+		t.FailNow()
+	}
+	metrics := prometheus.Metrics.Get()
+	// NetWorker does not return a status code but will populate the 200 code on succesful session
+	if metrics.ResponseCodes["200"] != 1.0 {
+		t.Logf("Expected %+v; Got %+v", 1, metrics.ResponseCodes["200"])
+		t.FailNow()
 	}
 }

@@ -14,16 +14,26 @@ import (
 	"go.f0o.dev/netbench/utils/worker"
 )
 
+type workerctx struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+}
+
 // Internal Scaler Struct representing the scaler
 type scaler struct {
 	ctx        context.Context
 	interval   time.Duration
 	increment  float64
-	workers    []context.CancelFunc
+	workers    []workerctx
 	scaler     interfaces.ScalerType
 	min, max   float64
 	factor     float64
 	workeropts *interfaces.WorkerOpts
+	wait       chan struct{}
+}
+
+func (scaler *scaler) Wait() chan struct{} {
+	return scaler.wait
 }
 
 // Start starts the scaler
@@ -37,15 +47,25 @@ func (scaler *scaler) Start() error {
 	for {
 		select {
 		case <-scaler.ctx.Done():
-			for k, w := range scaler.workers {
-				logger.Debug("stopping worker %+v", k)
-				w()
-			}
+			scaler.Stop()
 			return scaler.ctx.Err()
 		case <-d.C:
 			scaler.scale(fn)
 		}
 	}
+}
+
+// Stop stops the scaler
+func (scaler *scaler) Stop() {
+	logger.Debug("Stopping scaler; Stopping workers")
+	for len(scaler.workers) > 0 {
+		scaler.workers[0].cancel()
+		<-scaler.workers[0].ctx.Done()
+		scaler.workers = scaler.workers[1:]
+	}
+	logger.Debug("Stopped scaler")
+	scaler.wait <- struct{}{}
+	close(scaler.wait)
 }
 
 // scale scales the workers
@@ -69,7 +89,9 @@ func (scaler *scaler) scale(fn func() float64) {
 // spawn spawns a worker
 func (scaler *scaler) spawn() {
 	wc, wf := context.WithCancel(scaler.ctx)
-	scaler.workers = append(scaler.workers, wf)
+	scaler.workers = append(scaler.workers, workerctx{
+		cancel: wf,
+		ctx:    wc})
 	ww := worker.NewWorker(wc, scaler.workeropts)
 	go ww.Do()
 }
@@ -79,7 +101,7 @@ func (scaler *scaler) despawn() {
 	if len(scaler.workers) == 0 {
 		return
 	}
-	go scaler.workers[0]()
+	go scaler.workers[0].cancel()
 	scaler.workers = scaler.workers[1:]
 }
 
@@ -132,5 +154,6 @@ func NewScaler(ctx context.Context, scaler_opts *interfaces.ScalerOpts, worker_o
 		max:        max,
 		factor:     scaler_opts.Factor,
 		workeropts: worker_opts,
+		wait:       make(chan struct{}),
 	}
 }

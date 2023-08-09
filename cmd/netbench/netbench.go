@@ -64,8 +64,10 @@ func main() {
 	go signalHandler()
 
 	ctx, cancel = context.WithTimeout(context.Background(), flags.Duration)
-	go scaler.NewScaler(ctx, &flags.ScalerOpts, &flags.WorkerOpts).Start()
+	scaler := scaler.NewScaler(ctx, &flags.ScalerOpts, &flags.WorkerOpts)
+	go scaler.Start()
 	<-ctx.Done()
+	<-scaler.Wait()
 
 	metrics := prometheus.Metrics.Get()
 

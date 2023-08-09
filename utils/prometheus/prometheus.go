@@ -1,5 +1,7 @@
 package prometheus
 
+//TODO: documentation
+
 import (
 	"math"
 	"net/http"
@@ -68,11 +70,18 @@ func (metrics *metrics) Get() MetricValues {
 }
 
 func (metricvalues *MetricValues) sanityCheck() {
-	total_err := metricvalues.RequestsError + metricvalues.RequestsBlength + metricvalues.RequestsAborted
 	total_2xx := 0.0
-	for i := 200; i < 300; i++ {
-		total_2xx += metricvalues.ResponseCodes[strconv.Itoa(i)]
+	total_nxx := 0.0
+	for k, v := range metricvalues.ResponseCodes {
+		i, _ := strconv.Atoi(k)
+		if i >= 200 && i < 300 {
+			total_2xx += v
+		} else {
+			total_nxx += v
+		}
 	}
+
+	total_err := metricvalues.RequestsError + metricvalues.RequestsBlength + metricvalues.RequestsAborted + total_nxx
 
 	if metricvalues.RequestsFailed != total_err {
 		logger.Warnw("Total Failed Requests does not match", "Total Failed", metricvalues.RequestsFailed, "Total Errors", total_err)

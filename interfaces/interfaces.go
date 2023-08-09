@@ -76,6 +76,8 @@ type Worker interface {
 
 type Scaler interface {
 	Start() error
+	Stop()
+	Wait() chan struct{}
 }
 
 type ScalerType int

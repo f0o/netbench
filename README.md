@@ -1,5 +1,5 @@
 # netbench
-[![Go](https://github.com/f0o/netbench/actions/workflows/go.yml/badge.svg?branch=main)](https://github.com/f0o/netbench/actions/workflows/go.yml) [![Release](https://github.com/f0o/netbench/actions/workflows/release.yaml/badge.svg)](https://github.com/f0o/netbench/actions/workflows/release.yaml) [![Release Docker](https://github.com/f0o/netbench/actions/workflows/docker.yaml/badge.svg)](https://github.com/f0o/netbench/actions/workflows/docker.yaml)
+[![Pull Requests](https://github.com/f0o/netbench/actions/workflows/pr.yaml/badge.svg)](https://github.com/f0o/netbench/actions/workflows/pr.yaml) [![Release](https://github.com/f0o/netbench/actions/workflows/release.yaml/badge.svg)](https://github.com/f0o/netbench/actions/workflows/release.yaml) [![CodeQL](https://github.com/f0o/netbench/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/f0o/netbench/actions/workflows/github-code-scanning/codeql) [![Known Vulnerabilities](https://snyk.io/test/github/f0o/netbench/badge.svg)](https://snyk.io/test/github/f0o/netbench)
 
 Yes another network benchmarking tool. This one is written in Go to scratch an itch.
 

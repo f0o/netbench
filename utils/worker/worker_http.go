@@ -39,11 +39,11 @@ func (httpWorker *httpWorker) Do() error {
 	stop := time.Since(start)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			logger.Debug("context canceled or deadline exceeded")
+			logger.Trace("context canceled or deadline exceeded")
 			prometheus.Metrics.RequestsAborted.Inc()
 			return httpWorker.ctx.Err()
 		}
-		logger.Debug("net/http error: %+v", err)
+		logger.Trace("net/http error: %+v", err)
 
 		prometheus.Metrics.RequestsError.Inc()
 		return err
@@ -56,11 +56,11 @@ func (httpWorker *httpWorker) Do() error {
 	defer resp.Body.Close()
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			logger.Debug("context canceled or deadline exceeded")
+			logger.Trace("context canceled or deadline exceeded")
 			prometheus.Metrics.RequestsAborted.Inc()
 			return httpWorker.ctx.Err()
 		}
-		logger.Debug("io.ReadAll error: %+v", err)
+		logger.Trace("io.ReadAll error: %+v", err)
 		prometheus.Metrics.RequestsError.Inc()
 		return err
 	}

@@ -16,11 +16,11 @@ type Flags struct {
 }
 
 type ScalerOpts struct {
-	Type   ScalerType
-	Period time.Duration
-	Factor float64
-	Min    int
-	Max    int
+	Type     ScalerType
+	Interval time.Duration
+	Factor   float64
+	Min      int
+	Max      int
 }
 
 type WorkerOpts struct {
@@ -68,6 +68,7 @@ func (httpheaders *HTTPHeaders) Set(value string) error {
 type PrometheusOpts struct {
 	Enabled bool
 	Bind    string
+	Tolerance float64
 }
 
 type Worker interface {
@@ -76,8 +77,6 @@ type Worker interface {
 
 type Scaler interface {
 	Start() error
-	Stop()
-	Wait() chan struct{}
 }
 
 type ScalerType int

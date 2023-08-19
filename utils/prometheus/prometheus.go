@@ -28,6 +28,7 @@ type metrics struct {
 	ResponseBytes   prometheus.Gauge
 	Workers         prometheus.Gauge
 	Start           time.Time
+	Tolerance       float64
 }
 
 type MetricValues struct {
@@ -42,14 +43,15 @@ type MetricValues struct {
 	Workers         float64            `json:"workers"`
 	Duration        time.Duration      `json:"duration"`
 	RequestsPerSec  float64            `json:"requests_per_sec"`
+	Tolerance       float64            `json:"tolerance"`
 }
 
 var Metrics metrics
 
+var SkipSanityCheck bool = false
+
 func (metrics *metrics) Get() MetricValues {
 	d := time.Since(metrics.Start)
-	logger.Debug("Flushing Metrics")
-	time.Sleep(150 * time.Millisecond)
 	m := MetricValues{
 		RequestsTotal:   *getCounterValue(metrics.RequestsTotal),
 		RequestsFailed:  *getCounterValue(metrics.RequestsFailed),
@@ -61,15 +63,18 @@ func (metrics *metrics) Get() MetricValues {
 		ResponseBytes:   *getGaugeValue(metrics.ResponseBytes),
 		Workers:         *getGaugeValue(metrics.Workers),
 		Duration:        d,
+		Tolerance:       metrics.Tolerance,
 	}
 	m.RequestsPerSec = m.RequestsTotal / m.Duration.Seconds()
-
-	m.sanityCheck()
-
+	if !SkipSanityCheck {
+		m.sanityCheck()
+	}
 	return m
 }
 
 func (metricvalues *MetricValues) sanityCheck() {
+	var insane bool
+	var diff float64
 	total_2xx := 0.0
 	total_nxx := 0.0
 	for k, v := range metricvalues.ResponseCodes {
@@ -80,15 +85,29 @@ func (metricvalues *MetricValues) sanityCheck() {
 			total_nxx += v
 		}
 	}
-
 	total_err := metricvalues.RequestsError + metricvalues.RequestsBlength + metricvalues.RequestsAborted + total_nxx
-
+	tolerance := metricvalues.Tolerance * metricvalues.RequestsTotal
 	if metricvalues.RequestsFailed != total_err {
-		logger.Warnw("Total Failed Requests does not match", "Total Failed", metricvalues.RequestsFailed, "Total Errors", total_err)
+		diff = math.Abs(metricvalues.RequestsFailed - total_err)
+		if diff > tolerance {
+			logger.Warnw("Total Failed Requests does not match", "Have", metricvalues.RequestsFailed, "Want", total_err, "Diff", diff, "Tolerance", metricvalues.Tolerance)
+			insane = true
+		} else {
+			logger.Debugw("Total Failed Requests does not match but is within tolerance", "Have", metricvalues.RequestsFailed, "Want", total_err, "Diff", diff, "Tolerance", metricvalues.Tolerance)
+		}
 	}
+	if metricvalues.RequestsTotal != total_err+total_2xx {
+		diff = math.Abs(metricvalues.RequestsTotal - (total_err + total_2xx))
+		if diff > tolerance {
+			logger.Warnw("Total Requests does not match", "Have", metricvalues.RequestsTotal, "Want", total_err+total_2xx, "Diff", diff, "Tolerance", metricvalues.Tolerance)
+			insane = true
+		} else {
+			logger.Debugw("Total Requests does not match but is within tolerance", "Have", metricvalues.RequestsTotal, "Want", total_err+total_2xx, "Diff", diff, "Tolerance", metricvalues.Tolerance)
+		}
 
-	if metricvalues.RequestsTotal != metricvalues.RequestsFailed+total_2xx {
-		logger.Warnw("Total Requests does not match", "Total Requests", metricvalues.RequestsTotal, "Total Failed", total_err, "Total 2xx", total_2xx)
+	}
+	if insane {
+		logger.Warn("Metrics are insane; This could be caused by extreme scaling or a bug in netbench. Interpreting results may be difficult.")
 	}
 }
 
@@ -115,21 +134,48 @@ func (metrics *metrics) GetCodeCounter(code int) prometheus.Counter {
 	return metrics.ResponseCodes[code]
 }
 
+func (metrics *metrics) SetTolerance(tolerance float64) {
+	if tolerance < 0.0 {
+		logger.Warnw("Tolerance less than 0.0 (=0%); setting to 0.0", "Tolerance", tolerance)
+		tolerance = 0.0
+	} else if tolerance >= 1.0 {
+		logger.Warnw("Tolerance greater than or equal to 1.0 (=100%); disabling metrics sanity checks", "Tolerance", tolerance)
+		SkipSanityCheck = true
+		return
+	}
+
+	metrics.mutex.Lock()
+	defer metrics.mutex.Unlock()
+	metrics.Tolerance = tolerance
+}
+
 func getGaugeValue(g prometheus.Gauge) *float64 {
 	m := dto.Metric{}
-	g.Write(&m)
+	err := g.Write(&m)
+	if err != nil {
+		logger.Warnw("Could not get Metric", "Metric", g)
+		return nil
+	}
 	return m.GetGauge().Value
 }
 
 func getCounterValue(c prometheus.Counter) *float64 {
 	m := dto.Metric{}
-	c.Write(&m)
+	err := c.Write(&m)
+	if err != nil {
+		logger.Warnw("Could not get Metric", "Metric", c)
+		return nil
+	}
 	return m.GetCounter().Value
 }
 
 func getSummaryValue(s prometheus.Summary) map[string]float64 {
 	m := dto.Metric{}
-	s.Write(&m)
+	err := s.Write(&m)
+	if err != nil {
+		logger.Warnw("Could not get Metric", "Metric", s)
+		return nil
+	}
 	q := m.GetSummary().Quantile
 	r := make(map[string]float64)
 	for _, v := range q {
@@ -183,11 +229,10 @@ func init() {
 	}
 }
 
-func Start(bind string) error {
+func Start(bind string) {
 	http.Handle("/metrics", promhttp.Handler())
 	err := http.ListenAndServe(bind, nil)
 	if err != nil {
 		logger.Fatalw("Prometheus Error: %+v", err)
 	}
-	return err
 }

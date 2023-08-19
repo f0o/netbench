@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -18,7 +19,9 @@ var ctx context.Context
 var cancel context.CancelFunc
 
 func init() {
-	maxprocs.Set(maxprocs.Logger(logger.Debug))
+	if _, err := maxprocs.Set(maxprocs.Logger(logger.Debug)); err != nil {
+		logger.Warnw("Cannot set MAXPROCS", "error", err)
+	}
 }
 
 func signalHandler() {
@@ -58,16 +61,24 @@ func outputText(metrics prometheus.MetricValues) {
 	fmt.Printf("    Min Latency  : %+v\n", time.Duration(metrics.ResponseTimes["0"]))
 }
 
+func start(ctx context.Context) {
+	scaler := scaler.NewScaler(ctx, &flags.ScalerOpts, &flags.WorkerOpts)
+	err := scaler.Start()
+	if err != nil {
+		if !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, context.Canceled) {
+			logger.Errorw("Scaler exited with unexpected error", "error", err)
+		}
+	}
+}
+
 func main() {
 	logger.Info("Starting netbench")
 	logger.Debugw("Starting with configuration", "Flags", flags)
 	go signalHandler()
 
 	ctx, cancel = context.WithTimeout(context.Background(), flags.Duration)
-	scaler := scaler.NewScaler(ctx, &flags.ScalerOpts, &flags.WorkerOpts)
-	go scaler.Start()
+	go start(ctx)
 	<-ctx.Done()
-	<-scaler.Wait()
 
 	metrics := prometheus.Metrics.Get()
 

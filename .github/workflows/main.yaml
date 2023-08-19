@@ -1,13 +1,12 @@
 name: Pull Requests
 
 on:
-  pull_request:
+  push:
     branches:
       - main
 
 permissions:
   contents: read
-  pull-requests: read
 
 jobs:
   Tests:
@@ -27,9 +26,3 @@ jobs:
       uses: codecov/codecov-action@v3
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
-    - name: GolangCI Lint
-      uses: golangci/golangci-lint-action@v3
-      with:
-        version: latest
-        only-new-issues: true

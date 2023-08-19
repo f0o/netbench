@@ -2,12 +2,14 @@ package scaler
 
 import (
 	"context"
+	"errors"
 	"math"
 	"math/rand"
 	"testing"
 	"time"
 
 	"go.f0o.dev/netbench/interfaces"
+	"go.uber.org/goleak"
 )
 
 var (
@@ -28,6 +30,7 @@ var (
 )
 
 func TestScaler(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	for _, c := range testCases {
 		t.Run(c.Type.String(), func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
@@ -76,4 +79,31 @@ func BenchmarkScaler(b *testing.B) {
 			}
 		})
 	}
+}
+
+func TestScalerStart(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	c := testCases[rng.Intn(len(testCases))]
+	t.Run(c.Type.String(), func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		s := scaler{
+			ctx:        ctx,
+			scaler:     c.Type,
+			increment:  0,
+			interval:   time.Second,
+			min:        0,
+			max:        0,
+			factor:     c.Factor,
+			workeropts: &interfaces.WorkerOpts{},
+		}
+		go func() {
+			err := s.Start()
+			if !errors.Is(err, context.Canceled) {
+				t.Logf("Expected %+v, Got %+v", context.Canceled, err)
+				t.Fail()
+			}
+		}()
+		cancel()
+		<-ctx.Done()
+	})
 }

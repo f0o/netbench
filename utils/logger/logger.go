@@ -2,6 +2,7 @@ package logger
 
 import (
 	"os"
+	"strings"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -12,43 +13,54 @@ type logger struct {
 }
 
 var DefaultLogger logger
+var TraceEnabled bool = false
 
 func init() {
 	var z zap.Config
 	atom := zap.NewAtomicLevel()
-	switch os.Getenv("LOG_LEVEL") {
-	case "fatal", "FATAL":
+	switch strings.ToLower(os.Getenv("LOG_LEVEL")) {
+	case "fatal":
 		atom.SetLevel(zapcore.FatalLevel)
-	case "panic", "PANIC":
+	case "panic":
 		atom.SetLevel(zapcore.PanicLevel)
-	case "dpanic", "DPANIC":
+	case "dpanic":
 		atom.SetLevel(zapcore.DPanicLevel)
-	case "error", "ERROR":
+	case "error":
 		atom.SetLevel(zapcore.ErrorLevel)
-	case "warn", "WARN", "":
+	case "warn", "":
 		atom.SetLevel(zapcore.WarnLevel)
-	case "info", "INFO":
+	case "info":
 		atom.SetLevel(zapcore.InfoLevel)
-	case "debug", "DEBUG":
+	case "debug":
 		atom.SetLevel(zapcore.DebugLevel)
+	case "trace":
+		atom.SetLevel(zapcore.DebugLevel)
+		TraceEnabled = true
 	default:
 		panic("illegal LOG_LEVEL supplied")
 	}
 
-	if os.Getenv("ENV") == "prod" {
+	format := strings.ToLower(os.Getenv("LOG_FORMAT"))
+
+	if format == "json" {
 		z = zap.NewProductionConfig()
 	} else {
 		z = zap.NewDevelopmentConfig()
 	}
 
 	z.Level = atom
-	t, _ := z.Build(zap.AddCallerSkip(1))
+	t, _ := z.Build(zap.AddCallerSkip(1), zap.AddStacktrace(zapcore.ErrorLevel))
 	DefaultLogger = logger{
 		logger: t.Sugar(),
 	}
 }
 
 // printf styled loggers
+func Trace(msg string, fields ...interface{}) {
+	if TraceEnabled {
+		DefaultLogger.logger.Debugf(msg, fields...)
+	}
+}
 func Debug(msg string, fields ...interface{}) {
 	DefaultLogger.logger.Debugf(msg, fields...)
 }
@@ -72,6 +84,11 @@ func Fatal(msg string, fields ...interface{}) {
 }
 
 // structured loggers
+func Tracew(msg string, keysAndValues ...interface{}) {
+	if TraceEnabled {
+		DefaultLogger.logger.Debugw(msg, keysAndValues...)
+	}
+}
 func Debugw(msg string, keysAndValues ...interface{}) {
 	DefaultLogger.logger.Debugw(msg, keysAndValues...)
 }

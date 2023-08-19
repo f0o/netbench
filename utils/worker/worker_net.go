@@ -34,11 +34,11 @@ func (netWorker *netWorker) Do() error {
 	stop := time.Since(start)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			logger.Debug("context canceled or deadline exceeded")
+			logger.Trace("context canceled or deadline exceeded")
 			prometheus.Metrics.RequestsAborted.Inc()
 			return netWorker.ctx.Err()
 		}
-		logger.Debugw("failed to connect to socket", "Error", err)
+		logger.Tracew("failed to connect to socket", "Error", err)
 		prometheus.Metrics.RequestsError.Inc()
 		return err
 	}
@@ -61,11 +61,14 @@ func (netWorker *netWorker) Dial() (int, error) {
 	if err != nil {
 		return -1, err
 	}
-	conn.SetDeadline(time.Now().Add(netWorker.Timeout))
+	err = conn.SetDeadline(time.Now().Add(netWorker.Timeout))
+	if err != nil {
+		return -1, err
+	}
 	if netWorker.Payload != nil {
 		_, err = conn.Write(netWorker.Payload)
 		if err != nil {
-			logger.Debugw("failed to write to socket", "Error", err)
+			logger.Tracew("failed to write to socket", "Error", err)
 			return -1, err
 		}
 	}
@@ -78,7 +81,7 @@ func (netWorker *netWorker) Read(conn net.Conn) (int, error) {
 	for {
 		select {
 		case <-netWorker.ctx.Done():
-			logger.Debug("context done, quitting")
+			logger.Trace("context done, quitting")
 			return -1, netWorker.ctx.Err()
 		default:
 			_, err := br.Peek(1)

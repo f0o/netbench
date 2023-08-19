@@ -5,6 +5,7 @@ package scaler
 
 import (
 	"context"
+	"errors"
 	"math"
 	"time"
 
@@ -29,11 +30,7 @@ type scaler struct {
 	min, max   float64
 	factor     float64
 	workeropts *interfaces.WorkerOpts
-	wait       chan struct{}
-}
-
-func (scaler *scaler) Wait() chan struct{} {
-	return scaler.wait
+	done       bool
 }
 
 // Start starts the scaler
@@ -47,25 +44,13 @@ func (scaler *scaler) Start() error {
 	for {
 		select {
 		case <-scaler.ctx.Done():
-			scaler.Stop()
+			scaler.done = true
+			logger.Debug("Scaler context canceled")
 			return scaler.ctx.Err()
 		case <-d.C:
 			scaler.scale(fn)
 		}
 	}
-}
-
-// Stop stops the scaler
-func (scaler *scaler) Stop() {
-	logger.Debug("Stopping scaler; Stopping workers")
-	for len(scaler.workers) > 0 {
-		scaler.workers[0].cancel()
-		<-scaler.workers[0].ctx.Done()
-		scaler.workers = scaler.workers[1:]
-	}
-	logger.Debug("Stopped scaler")
-	scaler.wait <- struct{}{}
-	close(scaler.wait)
 }
 
 // scale scales the workers
@@ -74,10 +59,10 @@ func (scaler *scaler) scale(fn func() float64) {
 	old := len(scaler.workers)
 	target := math.Round(math.Min(math.Max(math.Abs(fn()), scaler.min), scaler.max))
 	logger.Debugw("scaling", "target", target, "old", old)
-	for w := float64(len(scaler.workers)); w < target; w++ {
+	for w := float64(len(scaler.workers)); w < target && !scaler.done; w++ {
 		scaler.spawn()
 	}
-	for w := float64(len(scaler.workers)); w > target; w-- {
+	for w := float64(len(scaler.workers)); w > target && !scaler.done; w-- {
 		scaler.despawn()
 	}
 	if old != len(scaler.workers) {
@@ -93,7 +78,15 @@ func (scaler *scaler) spawn() {
 		cancel: wf,
 		ctx:    wc})
 	ww := worker.NewWorker(wc, scaler.workeropts)
-	go ww.Do()
+	go scaler.run(ww)
+}
+
+func (scaler *scaler) run(ww interfaces.Worker) {
+	if err := ww.Do(); err != nil {
+		if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
+			logger.Warnw("Worker return unexpect error", "error", err)
+		}
+	}
 }
 
 // despawn despawns a worker
@@ -149,11 +142,10 @@ func NewScaler(ctx context.Context, scaler_opts *interfaces.ScalerOpts, worker_o
 		ctx:        ctx,
 		scaler:     scaler_opts.Type,
 		increment:  0,
-		interval:   scaler_opts.Period,
+		interval:   scaler_opts.Interval,
 		min:        min,
 		max:        max,
 		factor:     scaler_opts.Factor,
 		workeropts: worker_opts,
-		wait:       make(chan struct{}),
 	}
 }

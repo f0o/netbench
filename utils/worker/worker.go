@@ -21,23 +21,23 @@ type worker struct {
 // Do performs the actual work
 // it returns an error if the context is canceled or deadline exceeded
 func (worker *worker) Do() error {
-	var signal int
-	if worker.sync {
-		signal = syncWorkAdd()
-	}
+	var signal int = -1
 	for {
 		select {
 		case <-worker.ctx.Done():
-			logger.Debug("context done, quitting")
-			if worker.sync {
+			logger.Trace("context done, quitting")
+			if worker.sync && signal != -1 {
 				syncWorkDel(signal)
 			}
 			return worker.ctx.Err()
 		default:
+			if worker.sync && signal == -1 {
+				signal = syncWorkAdd()
+			}
 			err := worker.worker.Do()
 			prometheus.Metrics.RequestsTotal.Inc()
 			if err != nil {
-				logger.Debug("worker error: %+v", err)
+				logger.Trace("worker error: %+v", err)
 				prometheus.Metrics.RequestsFailed.Inc()
 			}
 			if worker.sync {

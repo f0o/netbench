@@ -7,7 +7,9 @@ require github.com/prometheus/client_golang v1.16.0
 require (
 	github.com/prometheus/client_model v0.4.0
 	go.uber.org/automaxprocs v1.5.3
+	go.uber.org/goleak v1.2.0
 	go.uber.org/zap v1.25.0
+	golang.org/x/net v0.7.0
 )
 
 require (

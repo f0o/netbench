@@ -28,6 +28,7 @@ func init() {
 
 	flag.BoolVar(&flags.PrometheusOpts.Enabled, "prometheus", false, "Enable Prometheus metrics server")
 	flag.StringVar(&flags.PrometheusOpts.Bind, "prometheus-bind", "0.0.0.0:8080", "Address to bind Prometheus metrics server")
+	flag.Float64Var(&flags.PrometheusOpts.Tolerance, "tolerance", 0.05, "Tolerance for missing metrics (0.05 = 5% of metrics can be missing)")
 
 	flag.StringVar(&flags.WorkerOpts.Target, "target", "", fmt.Sprintf(`Target URI to benchmark (scheme://host[:port][/path])
 Supported Schemes: %+v`, worker.AvailableWorkers()))
@@ -49,7 +50,7 @@ Supported Schemes: %+v`, worker.AvailableWorkers()))
 - 'sine'  : adds and removes workers in a sine wave
 - 'static': static number of workers
  (default curve)`)
-	flag.DurationVar(&flags.ScalerOpts.Period, "scaler-period", time.Minute, "Time to wait between scaler adjustments")
+	flag.DurationVar(&flags.ScalerOpts.Interval, "scaler-interval", time.Minute, "Time to wait between scaler adjustments")
 	flag.Float64Var(&flags.ScalerOpts.Factor, "scaler-factor", 1.5, `Scaling factor for scalers:
 - when using 'static' scaler uses this as the number of workers
 - when using 'curve' scaler uses this as the exponent
@@ -79,4 +80,5 @@ Supported Schemes: %+v`, worker.AvailableWorkers()))
 	if flags.PrometheusOpts.Enabled {
 		go prometheus.Start(flags.PrometheusOpts.Bind)
 	}
+	prometheus.Metrics.SetTolerance(flags.PrometheusOpts.Tolerance)
 }

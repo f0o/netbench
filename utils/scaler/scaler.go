@@ -76,7 +76,8 @@ func (scaler *scaler) spawn() {
 	wc, wf := context.WithCancel(scaler.ctx)
 	scaler.workers = append(scaler.workers, workerctx{
 		cancel: wf,
-		ctx:    wc})
+		ctx:    wc,
+	})
 	ww := worker.NewWorker(wc, scaler.workeropts)
 	go scaler.run(ww)
 }

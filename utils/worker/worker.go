@@ -45,7 +45,6 @@ func (worker *worker) Do() error {
 			}
 		}
 	}
-
 }
 
 // NewWorker returns a new worker based on the context

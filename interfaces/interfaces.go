@@ -66,8 +66,8 @@ func (httpheaders *HTTPHeaders) Set(value string) error {
 }
 
 type PrometheusOpts struct {
-	Enabled bool
-	Bind    string
+	Enabled   bool
+	Bind      string
 	Tolerance float64
 }
 

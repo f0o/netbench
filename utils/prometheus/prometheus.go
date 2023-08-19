@@ -1,6 +1,6 @@
 package prometheus
 
-//TODO: documentation
+// TODO: documentation
 
 import (
 	"math"

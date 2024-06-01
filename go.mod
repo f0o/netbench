@@ -2,7 +2,7 @@ module go.f0o.dev/netbench
 
 go 1.19
 
-require github.com/prometheus/client_golang v1.19.0
+require github.com/prometheus/client_golang v1.19.1
 
 require (
 	github.com/prometheus/client_model v0.6.1

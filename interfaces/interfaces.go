@@ -7,42 +7,43 @@ import (
 )
 
 type Flags struct {
-	PrometheusOpts
-	WorkerOpts
-	ScalerOpts
+	PrometheusOpts `json:"prometheus"`
+	WorkerOpts     `json:"worker"`
+	ScalerOpts     `json:"scaler"`
 
-	Duration time.Duration
-	Format   string
+	Duration time.Duration `json:"duration"`
+	Format   string        `json:"format"`
 }
 
 type ScalerOpts struct {
-	Type     ScalerType
-	Interval time.Duration
-	Factor   float64
-	Min      int
-	Max      int
+	Type     ScalerType    `json:"type"`
+	Interval time.Duration `json:"interval"`
+	Factor   float64       `json:"factor"`
+	Min      int           `json:"min"`
+	Max      int           `json:"max"`
 }
 
 type WorkerOpts struct {
-	HTTPOpts
-	NetOpts
+	HTTPOpts `json:"http"`
+	NetOpts  `json:"net"`
 
-	Payload string
-	Target  string
-	Sync    bool
+	Payload string `json:"payload"`
+	Target  string `json:"target"`
+	Sync    bool   `json:"sync"`
 }
 
 type NetOpts struct {
-	Addr    string
-	Type    string
-	Timeout time.Duration
+	Addr    string        `json:"address"`
+	Type    string        `json:"type"`
+	Timeout time.Duration `json:"timeout"`
 }
 
 type HTTPOpts struct {
-	URL     string
-	Method  string
-	Headers HTTPHeaders
-	Follow  bool
+	URL     string        `json:"url"`
+	Method  string        `json:"method"`
+	Headers HTTPHeaders   `json:"headers"`
+	Follow  bool          `json:"follow"`
+	Timeout time.Duration `json:"timeout"`
 }
 
 type HTTPHeaders map[string]string
@@ -66,9 +67,9 @@ func (httpheaders *HTTPHeaders) Set(value string) error {
 }
 
 type PrometheusOpts struct {
-	Enabled   bool
-	Bind      string
-	Tolerance float64
+	Enabled   bool    `json:"enabled"`
+	Bind      string  `json:"bind"`
+	Tolerance float64 `json:"tolerance"`
 }
 
 type Worker interface {

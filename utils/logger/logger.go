@@ -12,8 +12,10 @@ type logger struct {
 	logger *zap.SugaredLogger
 }
 
-var DefaultLogger logger
-var TraceEnabled bool = false
+var (
+	DefaultLogger logger
+	TraceEnabled  bool = false
+)
 
 func init() {
 	var z zap.Config
@@ -61,24 +63,31 @@ func Trace(msg string, fields ...interface{}) {
 		DefaultLogger.logger.Debugf(msg, fields...)
 	}
 }
+
 func Debug(msg string, fields ...interface{}) {
 	DefaultLogger.logger.Debugf(msg, fields...)
 }
+
 func Info(msg string, fields ...interface{}) {
 	DefaultLogger.logger.Infof(msg, fields...)
 }
+
 func Warn(msg string, fields ...interface{}) {
 	DefaultLogger.logger.Warnf(msg, fields...)
 }
+
 func Error(msg string, fields ...interface{}) {
 	DefaultLogger.logger.Errorf(msg, fields...)
 }
+
 func Panic(msg string, fields ...interface{}) {
 	DefaultLogger.logger.Panicf(msg, fields...)
 }
+
 func DPanic(msg string, fields ...interface{}) {
 	DefaultLogger.logger.DPanicf(msg, fields...)
 }
+
 func Fatal(msg string, fields ...interface{}) {
 	DefaultLogger.logger.Fatalf(msg, fields...)
 }
@@ -89,24 +98,31 @@ func Tracew(msg string, keysAndValues ...interface{}) {
 		DefaultLogger.logger.Debugw(msg, keysAndValues...)
 	}
 }
+
 func Debugw(msg string, keysAndValues ...interface{}) {
 	DefaultLogger.logger.Debugw(msg, keysAndValues...)
 }
+
 func Infow(msg string, keysAndValues ...interface{}) {
 	DefaultLogger.logger.Infow(msg, keysAndValues...)
 }
+
 func Warnw(msg string, keysAndValues ...interface{}) {
 	DefaultLogger.logger.Warnw(msg, keysAndValues...)
 }
+
 func Errorw(msg string, keysAndValues ...interface{}) {
 	DefaultLogger.logger.Errorw(msg, keysAndValues...)
 }
+
 func Panicw(msg string, keysAndValues ...interface{}) {
 	DefaultLogger.logger.Panicw(msg, keysAndValues...)
 }
+
 func DPanicw(msg string, keysAndValues ...interface{}) {
 	DefaultLogger.logger.DPanicw(msg, keysAndValues...)
 }
+
 func Fatalw(msg string, keysAndValues ...interface{}) {
 	DefaultLogger.logger.Fatalw(msg, keysAndValues...)
 }

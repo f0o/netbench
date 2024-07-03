@@ -15,8 +15,10 @@ import (
 	"go.uber.org/automaxprocs/maxprocs"
 )
 
-var ctx context.Context
-var cancel context.CancelFunc
+var (
+	ctx    context.Context
+	cancel context.CancelFunc
+)
 
 func init() {
 	if _, err := maxprocs.Set(maxprocs.Logger(logger.Debug)); err != nil {

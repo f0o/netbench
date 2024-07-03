@@ -1,4 +1,4 @@
-name: Pull Requests
+name: Main Branch
 
 on:
   push:

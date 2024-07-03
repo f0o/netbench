@@ -6,9 +6,11 @@ import (
 	"go.f0o.dev/netbench/utils/logger"
 )
 
-var syncWork_mutex sync.Mutex
-var syncWork_wait int
-var syncWork_signals map[int]chan struct{} = make(map[int]chan struct{})
+var (
+	syncWork_mutex   sync.Mutex
+	syncWork_wait    int
+	syncWork_signals map[int]chan struct{} = make(map[int]chan struct{})
+)
 
 func syncWorkAdd() int {
 	syncWork_mutex.Lock()

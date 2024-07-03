@@ -20,6 +20,7 @@ type httpWorker struct {
 	Method  string
 	Headers map[string]string
 	Payload []byte
+	Timeout time.Duration
 	blen    int
 }
 
@@ -29,7 +30,9 @@ func init() {
 }
 
 func (httpWorker *httpWorker) Do() error {
-	req, _ := http.NewRequestWithContext(httpWorker.ctx, httpWorker.Method, httpWorker.URL, bytes.NewReader(httpWorker.Payload))
+	ctx, c := context.WithTimeout(httpWorker.ctx, httpWorker.Timeout)
+	defer c()
+	req, _ := http.NewRequestWithContext(ctx, httpWorker.Method, httpWorker.URL, bytes.NewReader(httpWorker.Payload))
 	// req, _ := http.NewRequest(httpWorker.Method, httpWorker.URL, bytes.NewReader(httpWorker.Payload))
 	for k, v := range httpWorker.Headers {
 		req.Header.Add(k, v)
@@ -41,7 +44,7 @@ func (httpWorker *httpWorker) Do() error {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			logger.Trace("context canceled or deadline exceeded")
 			prometheus.Metrics.RequestsAborted.Inc()
-			return httpWorker.ctx.Err()
+			return ctx.Err()
 		}
 		logger.Trace("net/http error: %+v", err)
 
@@ -91,5 +94,6 @@ func NewHTTPWorker(ctx context.Context, opts *interfaces.HTTPOpts, payload []byt
 		Method:  opts.Method,
 		Headers: opts.Headers,
 		Payload: payload,
+		Timeout: opts.Timeout,
 	}
 }

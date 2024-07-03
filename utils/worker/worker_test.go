@@ -52,6 +52,7 @@ func TestHTTPWorker(t *testing.T) {
 				Method:  method,
 				Headers: map[string]string{},
 				Follow:  false,
+				Timeout: 200 * time.Millisecond,
 			}, []byte("Hello World"))
 			err := worker.Do()
 			if err != nil && !errors.Is(err, ErrHTTPStatus) {

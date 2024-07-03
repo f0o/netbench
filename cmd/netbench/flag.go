@@ -34,6 +34,7 @@ func init() {
 Supported Schemes: %+v`, worker.AvailableWorkers()))
 	flag.StringVar(&flags.WorkerOpts.Payload, "payload", "", "Optional base64 encoded payload to send to the target")
 	flag.BoolVar(&flags.WorkerOpts.Sync, "sync", false, "Synchronous mode (execute all requests concurrently and wait for all to complete)")
+	flag.DurationVar(&flags.WorkerOpts.HTTPOpts.Timeout, "http-timeout", 3*time.Second, "Timeout for HTTP operations")
 
 	flags.WorkerOpts.HTTPOpts.Headers = make(map[string]string)
 	flag.StringVar(&flags.WorkerOpts.HTTPOpts.Method, "http-method", "GET", "HTTP Method to use")

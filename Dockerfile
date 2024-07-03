@@ -12,10 +12,10 @@ RUN cd cmd/netbench \
 && go build -o ../../netbench -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${BUILD_DATE}" .
 
 FROM alpine AS final
+USER nobody
+ENV ENV=prod
 
 COPY --from=builder /opt/netbench/netbench /netbench
 
-ENV ENV=prod
 ENTRYPOINT [ "/netbench" ]
-
 CMD [ "--help" ]
